@@ -1,4 +1,3 @@
-import os
 import praw
 import logging
 import time
@@ -15,12 +14,8 @@ class RedditScraper:
     """
     
     def __init__(self):
-        # Initialize the Reddit API client
-        self.reddit = praw.Reddit(
-            client_id=os.environ.get("REDDIT_CLIENT_ID", "your_client_id"),
-            client_secret=os.environ.get("REDDIT_CLIENT_SECRET", "your_client_secret"),
-            user_agent="PainPointScraper/1.0 (by /u/YourUsername)"
-        )
+        # Initialize without Reddit client
+        self.reddit = None
         # Target products to analyze
         self.target_products = ["cursor", "replit"]
         # Default subreddits to search
@@ -37,6 +32,33 @@ class RedditScraper:
             "year": "past year",
             "all": "all time"
         }
+        
+    def initialize_client(self, client_id, client_secret, user_agent=None):
+        """
+        Initialize the Reddit API client with provided credentials
+        
+        Args:
+            client_id (str): Reddit API client ID
+            client_secret (str): Reddit API client secret
+            user_agent (str): User agent string (optional)
+            
+        Returns:
+            bool: True if client was initialized successfully, False otherwise
+        """
+        if not client_id or not client_secret:
+            logger.error("Reddit API credentials missing")
+            return False
+            
+        try:
+            self.reddit = praw.Reddit(
+                client_id=client_id,
+                client_secret=client_secret,
+                user_agent=user_agent or "PainPointScraper/1.0"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error initializing Reddit client: {str(e)}")
+            return False
         
     def search_reddit(self, query, subreddits=None, limit=100, time_filter="month"):
         """
