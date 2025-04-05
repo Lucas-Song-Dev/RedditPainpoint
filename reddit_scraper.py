@@ -1,153 +1,172 @@
 import os
 import praw
 import logging
+import time
 from datetime import datetime
-from models import RedditPost, Product, db
+from models import RedditPost
+from app import data_store
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class RedditScraper:
+    """
+    Handles scraping of Reddit data using PRAW.
+    Focuses on scraping posts related to specific software products.
+    """
+    
     def __init__(self):
-        # Initialize Reddit API client
-        try:
-            self.reddit = praw.Reddit(
-                client_id=os.environ.get('REDDIT_CLIENT_ID', ''),
-                client_secret=os.environ.get('REDDIT_CLIENT_SECRET', ''),
-                user_agent=os.environ.get('REDDIT_USER_AGENT', 'script:painpoint-scraper:v1.0 (by /u/yourusername)')
-            )
-            logger.debug("Reddit API client initialized successfully")
-        except Exception as e:
-            logger.error(f"Error initializing Reddit API client: {e}")
-            self.reddit = None
-
-    def is_initialized(self):
-        """Check if the Reddit API client is properly initialized"""
-        return self.reddit is not None
-
-    def search_product_issues(self, product_name, subreddits=None, limit=100, time_filter='month'):
+        # Initialize the Reddit API client
+        self.reddit = praw.Reddit(
+            client_id=os.environ.get("REDDIT_CLIENT_ID", "your_client_id"),
+            client_secret=os.environ.get("REDDIT_CLIENT_SECRET", "your_client_secret"),
+            user_agent="PainPointScraper/1.0 (by /u/YourUsername)"
+        )
+        # Target products to analyze
+        self.target_products = ["cursor", "replit"]
+        # Default subreddits to search
+        self.default_subreddits = [
+            "programming", "webdev", "learnprogramming", 
+            "coding", "javascript", "python", "reactjs",
+            "vscode", "IDE", "developers", "replit", "cursor_editor"
+        ]
+        # Available time filters
+        self.time_filters = {
+            "day": "past 24 hours",
+            "week": "past week",
+            "month": "past month",
+            "year": "past year",
+            "all": "all time"
+        }
+        
+    def search_reddit(self, query, subreddits=None, limit=100, time_filter="month"):
         """
-        Search Reddit for posts about issues related to a specific product
+        Search Reddit for posts containing specific keywords
+        
+        Args:
+            query (str): The search query
+            subreddits (list): List of subreddits to search
+            limit (int): Maximum number of results to return
+            time_filter (str): 'day', 'week', 'month', 'year', 'all'
+            
+        Returns:
+            list: List of RedditPost objects
+        """
+        if not subreddits:
+            subreddits = self.default_subreddits
+            
+        logger.info(f"Searching Reddit for '{query}' in {subreddits}")
+        
+        # Track which subreddits have been scraped
+        for subreddit in subreddits:
+            data_store.subreddits_scraped.add(subreddit)
+            
+        # Create subreddit objects
+        subreddit_objects = [self.reddit.subreddit(sub) for sub in subreddits]
+        
+        # Use PRAW to search for posts
+        posts = []
+        for subreddit in subreddit_objects:
+            try:
+                for submission in subreddit.search(query, limit=limit, time_filter=time_filter):
+                    # Convert to our internal model
+                    post = RedditPost(
+                        id=submission.id,
+                        title=submission.title,
+                        content=submission.selftext,
+                        author=str(submission.author),
+                        subreddit=str(submission.subreddit),
+                        url=submission.url,
+                        created_utc=datetime.fromtimestamp(submission.created_utc),
+                        score=submission.score,
+                        num_comments=submission.num_comments
+                    )
+                    posts.append(post)
+                    
+                    # Add to store
+                    if post.id not in [p.id for p in data_store.raw_posts]:
+                        data_store.raw_posts.append(post)
+                        
+                # Apply rate limiting to avoid hitting the Reddit API too hard
+                time.sleep(2)
+                    
+            except Exception as e:
+                logger.error(f"Error searching subreddit {subreddit}: {str(e)}")
+                
+        logger.info(f"Found {len(posts)} posts for query '{query}'")
+        return posts
+    
+    def scrape_product_mentions(self, product_name, limit=100, subreddits=None, time_filter="month"):
+        """
+        Scrape mentions of a specific product
         
         Args:
             product_name (str): Name of the product to search for
-            subreddits (list): List of subreddit names to search in
             limit (int): Maximum number of posts to retrieve
-            time_filter (str): Time filter for the search ('day', 'week', 'month', 'year', 'all')
+            subreddits (list): List of subreddits to search (optional)
+            time_filter (str): Time filter for search ('day', 'week', 'month', 'year', 'all')
             
         Returns:
-            list: List of posts found
+            list: List of RedditPost objects
         """
-        if not self.is_initialized():
-            logger.error("Reddit API client not initialized. Cannot perform search.")
-            return []
+        logger.info(f"Scraping mentions of {product_name} for time period: {self.time_filters.get(time_filter, 'unknown')}")
         
-        posts = []
-        search_query = f"{product_name} (issue OR problem OR bug OR frustrating OR broken)"
+        # Use provided subreddits or default ones
+        search_subreddits = subreddits if subreddits else self.default_subreddits
+        logger.info(f"Searching in subreddits: {search_subreddits}")
         
-        try:
-            # If subreddits are specified, search in those subreddits
-            if subreddits:
-                for subreddit_name in subreddits:
-                    subreddit = self.reddit.subreddit(subreddit_name)
-                    search_results = subreddit.search(search_query, sort='relevance', time_filter=time_filter, limit=limit)
-                    for post in search_results:
-                        posts.append(self._convert_post_to_dict(post, product_name))
-            # Otherwise, search across all of Reddit
-            else:
-                search_results = self.reddit.subreddit('all').search(search_query, sort='relevance', time_filter=time_filter, limit=limit)
-                for post in search_results:
-                    posts.append(self._convert_post_to_dict(post, product_name))
-            
-            logger.debug(f"Found {len(posts)} posts for product '{product_name}'")
-            return posts
-        
-        except Exception as e:
-            logger.error(f"Error searching Reddit for '{product_name}': {e}")
-            return []
-
-    def _convert_post_to_dict(self, post, product_name):
-        """Convert a PRAW post object to a dictionary"""
-        created_datetime = datetime.fromtimestamp(post.created_utc)
-        
-        return {
-            'reddit_id': post.id,
-            'title': post.title,
-            'url': f"https://www.reddit.com{post.permalink}",
-            'content': post.selftext,
-            'author': str(post.author) if post.author else '[deleted]',
-            'subreddit': post.subreddit.display_name,
-            'created_utc': created_datetime,
-            'score': post.score,
-            'product_name': product_name
-        }
-
-    def save_posts_to_db(self, posts, pain_point_id):
-        """Save Reddit posts to the database"""
-        for post_data in posts:
-            try:
-                # Check if post already exists
-                existing_post = RedditPost.query.filter_by(reddit_id=post_data['reddit_id']).first()
-                if existing_post:
-                    logger.debug(f"Post {post_data['reddit_id']} already exists in database")
-                    continue
-                
-                # Create new post
-                new_post = RedditPost(
-                    pain_point_id=pain_point_id,
-                    reddit_id=post_data['reddit_id'],
-                    title=post_data['title'],
-                    url=post_data['url'],
-                    content=post_data['content'],
-                    author=post_data['author'],
-                    subreddit=post_data['subreddit'],
-                    created_utc=post_data['created_utc'],
-                    score=post_data['score']
-                )
-                db.session.add(new_post)
-                
-            except Exception as e:
-                logger.error(f"Error saving post {post_data.get('reddit_id')}: {e}")
-                db.session.rollback()
-        
-        try:
-            db.session.commit()
-            logger.debug(f"Successfully saved {len(posts)} posts to database")
-        except Exception as e:
-            logger.error(f"Error committing posts to database: {e}")
-            db.session.rollback()
-
-    def get_default_products(self):
-        """Return a list of default products to scrape"""
-        return [
-            {"name": "Cursor", "description": "AI-powered code editor"},
-            {"name": "Replit", "description": "Online IDE and coding platform"},
-            {"name": "VSCode", "description": "Microsoft's code editor"},
-            {"name": "GitHub Copilot", "description": "AI pair programming tool"}
+        # Create search queries
+        queries = [
+            f"{product_name}",
+            f"{product_name} issue",
+            f"{product_name} problem",
+            f"{product_name} bug",
+            f"{product_name} feature request"
         ]
-
-    def initialize_default_products(self):
-        """Initialize default products in the database if they don't exist"""
-        default_products = self.get_default_products()
         
-        for product_data in default_products:
-            try:
-                existing_product = Product.query.filter_by(name=product_data['name']).first()
-                if not existing_product:
-                    new_product = Product(
-                        name=product_data['name'],
-                        description=product_data['description']
-                    )
-                    db.session.add(new_product)
-                    logger.debug(f"Added default product: {product_data['name']}")
-            except Exception as e:
-                logger.error(f"Error adding default product {product_data['name']}: {e}")
-                db.session.rollback()
+        all_posts = []
+        for query in queries:
+            posts = self.search_reddit(
+                query=query, 
+                subreddits=search_subreddits, 
+                limit=limit//len(queries), 
+                time_filter=time_filter
+            )
+            all_posts.extend(posts)
+            
+        # Update the timestamp for the last scrape
+        data_store.last_scrape_time = datetime.now()
         
+        return all_posts
+    
+    def scrape_all_products(self, limit=100, subreddits=None, time_filter="month", products=None):
+        """
+        Scrape mentions of all target products or specific products
+        
+        Args:
+            limit (int): Maximum number of posts per product
+            subreddits (list): List of subreddits to search (optional)
+            time_filter (str): Time filter for search ('day', 'week', 'month', 'year', 'all')
+            products (list): List of specific products to scrape (optional)
+            
+        Returns:
+            dict: Dictionary of product name to list of posts
+        """
+        data_store.scrape_in_progress = True
         try:
-            db.session.commit()
-            logger.debug("Successfully initialized default products")
+            result = {}
+            # Use provided product list or default target products
+            products_to_scrape = products if products else self.target_products
+            
+            for product in products_to_scrape:
+                result[product] = self.scrape_product_mentions(
+                    product_name=product, 
+                    limit=limit, 
+                    subreddits=subreddits, 
+                    time_filter=time_filter
+                )
+            data_store.scrape_in_progress = False
+            return result
         except Exception as e:
-            logger.error(f"Error committing default products to database: {e}")
-            db.session.rollback()
+            logger.error(f"Error during scraping: {str(e)}")
+            data_store.scrape_in_progress = False
+            raise

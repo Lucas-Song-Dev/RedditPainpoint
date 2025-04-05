@@ -1,166 +1,223 @@
-# Software Pain Point Analyzer
+# Reddit Pain Point Analyzer
 
-A tool that scrapes Reddit data to identify pain points in software products, with a responsive React frontend featuring dashboard and account pages.
+A Flask-based web application that scrapes Reddit for mentions of software products (e.g., Cursor, Replit) and uses NLP techniques to identify common pain points that users experience with these products. This analysis can help identify opportunities for creating browser extensions or other tools to address these pain points.
 
 ## Features
 
-- 📊 **Data Analysis**: Scrapes and analyzes Reddit data to identify common pain points in software products
-- 📈 **Visualizations**: Interactive charts to view pain point distribution
-- 🔍 **Product Insights**: Compare pain points across different software products
-- 🔄 **Responsive UI**: Clean interface built with React and Bootstrap
+- **Reddit Data Scraping**: Uses PRAW to collect posts mentioning target products
+- **Pain Point Analysis**: Identifies and categorizes common issues mentioned by users
+- **Sentiment Analysis**: Determines the emotional tone of user feedback
+- **OpenAI Integration**: Optional advanced analysis of pain points using OpenAI's API
+- **Visualization Dashboard**: Static admin page for viewing and exploring the data
+- **RESTful API**: Well-documented endpoints for programmatic access
 
-## Prerequisites
+## Getting Started
 
-- Python 3.11+
-- Reddit API credentials (sign up at [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps))
+### Prerequisites
 
-## Installation
+- Python 3.8+
+- Reddit API credentials
+- (Optional) OpenAI API key for advanced analysis
 
-### 1. Clone the repository
+### Installation
 
-```bash
-git clone https://github.com/Lucas-Song-Dev/RedditPainpoint.git
-cd software-pain-point-analyzer
-```
+1. Clone the repository
+2. Create a `.env` file with your credentials (see `.env.example` for format)
+3. Install dependencies: `pip install -r requirements.txt`
+4. Run the application: `python main.py`
 
-### 2. Set up a virtual environment
+## API Documentation
 
-```bash
-python -m venv venv
-```
+### API Endpoints
 
-Activate the virtual environment:
-
-#### On Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-#### On macOS/Linux:
-
-```bash
-source venv/bin/activate
-```
-
-### 3. Install required packages
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Set up environment variables
-
-Create a `.env` file in the root directory with the following content:
+#### Scrape Posts
 
 ```
-# Database configuration
-DATABASE_URL=sqlite:///reddit_data.db
-
-# Reddit API credentials
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
-REDDIT_USER_AGENT=script:painpoint-scraper:v1.0 (by /u/yourusername)
-
-# Session secret
-SESSION_SECRET=your_secret_key
+POST /api/scrape
 ```
 
-Replace the placeholder values with your actual Reddit API credentials.
+Start a scraping job for Reddit posts.
 
-## Running the Application
+**Request Parameters:**
+- `products` (array, optional): List of product names to scrape. Defaults to ["cursor", "replit"].
+- `limit` (integer, optional): Maximum number of posts to scrape per product. Defaults to 100.
+- `subreddits` (array, optional): List of subreddits to search. If not provided, searches all of Reddit.
+- `time_filter` (string, optional): Time period to search ('day', 'week', 'month', 'year', 'all'). Defaults to 'month'.
+- `use_openai` (boolean, optional): Whether to use OpenAI to analyze common pain points. Defaults to false.
 
-### Start the server
-
-```bash
-python main.py
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Scraping started in the background",
+  "scrape_id": "unique-id-for-job"
+}
 ```
 
-Or using Gunicorn (recommended for production):
-
-```bash
-gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
-```
-
-### Access the application
-
-Open your browser and navigate to:
+#### Get Pain Points
 
 ```
-http://localhost:5000
+GET /api/pain-points
 ```
 
-## How to Use
+Get all identified pain points.
 
-1. The application comes with default products (Cursor, Replit, VSCode, GitHub Copilot)
-2. Select a product from the dropdown to view its pain points
-3. Use the "Scrape Reddit" form to collect new data for any product
-4. View detailed information about pain points and related Reddit posts
-5. Explore the data visualizations to understand pain point distribution and product comparisons
+**Query Parameters:**
+- `product` (string, optional): Filter by product name.
+- `limit` (integer, optional): Limit number of results.
+- `min_severity` (float, optional): Minimum severity score (0-1).
 
-## Project Structure
-
-```
-├── static/                   # Static files
-│   └── js/                   # JavaScript files
-│       ├── components/       # React components
-│       │   ├── Account.jsx
-│       │   ├── Dashboard.jsx
-│       │   ├── DataVisualization.jsx
-│       │   ├── Navigation.jsx
-│       │   └── PainPointCard.jsx
-│       ├── api.js            # API client
-│       └── main.jsx          # Main React app
-├── templates/                # HTML templates
-│   └── index.html            # Main template
-├── analyzer.py               # Pain point analysis logic
-├── app.py                    # Flask app configuration
-├── main.py                   # App entry point
-├── models.py                 # Database models
-├── reddit_scraper.py         # Reddit scraping logic
-├── routes.py                 # API routes
-└── requirements.txt          # Project dependencies
+**Response:**
+```json
+{
+  "status": "success",
+  "count": 12,
+  "pain_points": [
+    {
+      "name": "Slow Performance",
+      "description": "Users complain about lag and slowness",
+      "product": "Cursor",
+      "frequency": 15,
+      "avg_sentiment": -0.75,
+      "severity": 0.85,
+      "related_posts": ["post-id-1", "post-id-2"]
+    },
+    // More pain points...
+  ],
+  "last_updated": "2023-08-15T10:30:45"
+}
 ```
 
-## Configuring Reddit API Credentials
+#### Get Posts
 
-To use the Reddit scraping functionality, you'll need to create a Reddit application:
+```
+GET /api/posts
+```
 
-1. Go to [https://www.reddit.com/prefs/apps](https://www.reddit.com/prefs/apps)
-2. Click "Create App" or "Create Another App"
-3. Fill in the following details:
-   - Name: Pain Point Analyzer (or any name you prefer)
-   - App type: Script
-   - Description: A tool to analyze software pain points from Reddit data
-   - About URL: (leave blank)
-   - Redirect URI: http://localhost:8000
-4. Click "Create app"
-5. Copy the Client ID (underneath the app name) and Client Secret
-6. Update your `.env` file with these values
+Get all scraped posts.
 
-## Extending the Application
+**Query Parameters:**
+- `product` (string, optional): Filter by product name.
+- `limit` (integer, optional): Limit number of results.
+- `has_pain_points` (boolean, optional): Only return posts with identified pain points.
+- `subreddit` (string, optional): Filter by subreddit name.
+- `min_score` (integer, optional): Minimum score threshold.
+- `min_comments` (integer, optional): Minimum comments threshold.
+- `sort_by` (string, optional): Field to sort by ('date', 'score', 'comments', 'sentiment'). Default: 'date'.
+- `sort_order` (string, optional): Sort order ('asc' or 'desc'). Default: 'desc'.
 
-### Adding new visualization types
+**Response:**
+```json
+{
+  "status": "success",
+  "count": 25,
+  "posts": [
+    {
+      "id": "post-id-1",
+      "title": "Cursor keeps crashing on large files",
+      "author": "username",
+      "subreddit": "programming",
+      "url": "https://reddit.com/r/programming/...",
+      "created_utc": "2023-08-14T15:30:00",
+      "score": 45,
+      "num_comments": 23,
+      "sentiment": -0.65,
+      "topics": ["performance", "stability"],
+      "pain_points": ["Crashes on large files", "Memory usage"]
+    },
+    // More posts...
+  ],
+  "filters_applied": {
+    "product": "Cursor",
+    "has_pain_points": true,
+    "subreddit": null,
+    "min_score": 0,
+    "min_comments": 0
+  },
+  "sort": {
+    "field": "date",
+    "order": "desc"
+  },
+  "last_updated": "2023-08-15T10:30:45"
+}
+```
 
-Modify the `DataVisualization.jsx` component to add new chart types.
+#### Get Status
 
-### Supporting additional data sources
+```
+GET /api/status
+```
 
-Extend the application to support other data sources by creating new scraper modules similar to `reddit_scraper.py`.
+Get current status of the scraper.
 
-## Troubleshooting
+**Response:**
+```json
+{
+  "status": "success",
+  "scrape_in_progress": false,
+  "last_scrape_time": "2023-08-15T10:30:45",
+  "raw_posts_count": 150,
+  "analyzed_posts_count": 150,
+  "pain_points_count": 25,
+  "subreddits_scraped": ["programming", "webdev", "python"],
+  "has_openai_analyses": true,
+  "openai_analyses_count": 2
+}
+```
 
-### Reddit API Issues
+#### Get OpenAI Analysis
 
-If you encounter issues with the Reddit API, check that:
+```
+GET /api/openai-analysis
+```
 
-- Your credentials are correct and properly configured
-- You're not exceeding the API rate limits
+Get the OpenAI analysis of pain points.
 
-### Database Problems
+**Query Parameters:**
+- `product` (string, optional): Filter by product name.
 
-If you encounter database issues, you can reset the database by deleting the `reddit_data.db` file and restarting the application.
+**Response:**
+```json
+{
+  "status": "success",
+  "openai_enabled": true,
+  "analyses": [
+    {
+      "product": "Cursor",
+      "summary": "Cursor users primarily experience issues with performance, stability, and code completion accuracy.",
+      "pain_points": [
+        {
+          "name": "Performance Issues",
+          "description": "Users report slowdowns and lag, particularly with large files or projects.",
+          "frequency": 28,
+          "sentiment": -0.78
+        },
+        // More pain points...
+      ],
+      "recommendations": [
+        {
+          "title": "File Size Optimizer",
+          "description": "Create an extension that optimizes large files for better performance in Cursor.",
+          "complexity": "Medium",
+          "impact": "High"
+        },
+        // More recommendations...
+      ]
+    },
+    // More product analyses...
+  ]
+}
+```
+
+## Using OpenAI for Analysis
+
+When the `use_openai` parameter is set to `true` in the scrape API call, the system uses OpenAI to perform advanced analysis of the pain points. This requires an OpenAI API key to be set in the `.env` file.
+
+The OpenAI analysis provides:
+- A summary of common pain points
+- Categorized pain points with frequency and sentiment analysis
+- Recommendations for potential browser extensions or tools to address these pain points
 
 ## License
 
-[MIT License](LICENSE)
+MIT License

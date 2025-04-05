@@ -1,73 +1,50 @@
-from app import db
-from flask_login import UserMixin
-from datetime import datetime
+# Define data models (for in-memory storage)
 
+class RedditPost:
+    """Model for storing Reddit post data"""
+    def __init__(self, id, title, content, author, subreddit, url, created_utc, score, num_comments):
+        self.id = id
+        self.title = title
+        self.content = content
+        self.author = author
+        self.subreddit = subreddit
+        self.url = url
+        self.created_utc = created_utc
+        self.score = score
+        self.num_comments = num_comments
+        # Analysis results (to be filled later)
+        self.sentiment = None
+        self.topics = []
+        self.pain_points = []
+        self.severity = None
 
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+class PainPoint:
+    """Model for categorized pain points"""
+    def __init__(self, name, description, frequency=0, avg_sentiment=0, related_posts=None, product=None):
+        self.name = name
+        self.description = description
+        self.frequency = frequency
+        self.avg_sentiment = avg_sentiment
+        self.related_posts = related_posts or []
+        self.product = product  # e.g., "Cursor", "Replit"
+        self.severity = 0  # Calculated based on frequency and sentiment
+        
+    def calculate_severity(self):
+        """Calculate severity score based on frequency and sentiment"""
+        # Negative sentiment is typically between -1 and 0
+        # Convert to 0-1 scale and multiply by frequency
+        sentiment_factor = abs(min(0, self.avg_sentiment))
+        self.severity = self.frequency * sentiment_factor
+        return self.severity
     
-    # Relationships
-    saved_searches = db.relationship('SavedSearch', backref='user', lazy=True)
-    
-    def __repr__(self):
-        return f'<User {self.username}>'
-
-
-class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.Text)
-    
-    # Relationships
-    pain_points = db.relationship('PainPoint', backref='product', lazy=True)
-    
-    def __repr__(self):
-        return f'<Product {self.name}>'
-
-
-class PainPoint(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    frequency = db.Column(db.Integer, default=1)
-    sentiment_score = db.Column(db.Float)
-    date_identified = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    posts = db.relationship('RedditPost', backref='pain_point', lazy=True)
-    
-    def __repr__(self):
-        return f'<PainPoint {self.title}>'
-
-
-class RedditPost(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    pain_point_id = db.Column(db.Integer, db.ForeignKey('pain_point.id'), nullable=False)
-    reddit_id = db.Column(db.String(20), unique=True, nullable=False)
-    title = db.Column(db.String(300))
-    url = db.Column(db.String(300))
-    content = db.Column(db.Text)
-    author = db.Column(db.String(100))
-    subreddit = db.Column(db.String(100))
-    created_utc = db.Column(db.DateTime)
-    score = db.Column(db.Integer)
-    
-    def __repr__(self):
-        return f'<RedditPost {self.reddit_id}>'
-
-
-class SavedSearch(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    product_name = db.Column(db.String(100), nullable=False)
-    keywords = db.Column(db.String(500))
-    subreddits = db.Column(db.String(500))
-    date_created = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<SavedSearch {self.product_name}>'
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "frequency": self.frequency,
+            "avg_sentiment": self.avg_sentiment,
+            "related_posts_count": len(self.related_posts),
+            "product": self.product,
+            "severity": self.severity
+        }

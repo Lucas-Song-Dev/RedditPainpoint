@@ -1,58 +1,284 @@
-<!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Software Pain Point Analyzer</title>
-    <meta name="description" content="A tool to identify pain points in software products by analyzing Reddit data">
-    
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Custom styles -->
-    <style>
-        .app-container {
-            min-height: 100vh;
-        }
-        .loading-spinner {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-    </style>
-</head>
-<body>
-    <div id="root" class="app-container">
-        <div class="loading-spinner">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+{% extends 'base.html' %}
+
+{% block title %}Reddit Pain Point Analyzer - Dashboard{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i> Pain Point Dashboard
+                </h4>
+                <div>
+                    <button id="refresh-btn" class="btn btn-sm btn-light">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh Data
+                    </button>
+                    <button id="scrape-btn" class="btn btn-sm btn-success">
+                        <i class="fas fa-spider me-1"></i> Start Scraping
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Posts Analyzed</h5>
+                                <h2 id="posts-count">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Pain Points Found</h5>
+                                <h2 id="pain-points-count">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Last Update</h5>
+                                <h6 id="last-update">Never</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Status</h5>
+                                <h6 id="status-indicator">Idle</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- React and dependencies -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-    <script src="https://unpkg.com/react-router-dom@6/umd/react-router-dom.production.min.js"></script>
-    
-    <!-- Axios for API requests -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Chart.js for visualizations -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- App scripts -->
-    <script type="text/babel" src="/static/js/api.js"></script>
-    <script type="text/babel" src="/static/js/components/PainPointCard.jsx"></script>
-    <script type="text/babel" src="/static/js/components/DataVisualization.jsx"></script>
-    <script type="text/babel" src="/static/js/components/Navigation.jsx"></script>
-    <script type="text/babel" src="/static/js/components/Dashboard.jsx"></script>
-    <script type="text/babel" src="/static/js/components/Account.jsx"></script>
-    <script type="text/babel" src="/static/js/main.jsx"></script>
-</body>
-</html>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i> Pain Points by Severity
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="severity-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i> Pain Points by Category
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="category-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OpenAI Analysis Section -->
+<div class="row mb-4" id="openai-section">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-brain me-2"></i> OpenAI Analysis
+                </h5>
+                <div>
+                    <select id="openai-product-filter" class="form-select form-select-sm">
+                        <option value="">All Products</option>
+                        <option value="Cursor">Cursor</option>
+                        <option value="Replit">Replit</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="openai-status-message" class="alert alert-info">
+                    OpenAI analysis has not been enabled. Use the "Start Scraping" button with the OpenAI option.
+                </div>
+                <div id="openai-analysis-container" class="d-none">
+                    <div class="mb-4">
+                        <h6>Analysis Summary</h6>
+                        <p id="openai-summary" class="border rounded p-3 bg-light"></p>
+                    </div>
+                    
+                    <h6>Top Pain Points Identified by OpenAI</h6>
+                    <div class="row" id="openai-pain-points-container">
+                        <!-- Pain points cards will be added here -->
+                    </div>
+                    
+                    <h6 class="mt-4">Recommendations</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Description</th>
+                                    <th>Complexity</th>
+                                    <th>Impact</th>
+                                </tr>
+                            </thead>
+                            <tbody id="openai-recommendations-table">
+                                <!-- Recommendations will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Top Pain Points
+                </h5>
+                <div class="d-flex">
+                    <select id="product-filter" class="form-select form-select-sm me-2">
+                        <option value="">All Products</option>
+                        <option value="Cursor">Cursor</option>
+                        <option value="Replit">Replit</option>
+                    </select>
+                    <button id="export-btn" class="btn btn-sm btn-light">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Product</th>
+                                <th>Frequency</th>
+                                <th>Sentiment</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pain-points-table">
+                            <!-- Pain points will be loaded here dynamically -->
+                            <tr>
+                                <td colspan="6" class="text-center">No data available. Click "Start Scraping" to begin.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fab fa-reddit me-2"></i> Recent Posts
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="posts-container">
+                    <!-- Posts will be loaded here dynamically -->
+                    <div class="text-center py-5">
+                        <i class="fas fa-spinner fa-pulse fa-3x"></i>
+                        <p class="mt-3">Loading posts...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
+    <div id="toast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto" id="toast-title">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toast-message">
+            Hello, world! This is a toast message.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
+
+<!-- Scraping Options Modal -->
+<div class="modal fade" id="scrapeModal" tabindex="-1" aria-labelledby="scrapeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="scrapeModalLabel">Scraping Options</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="scrape-form">
+          <div class="mb-3">
+            <label class="form-label">Products to Scrape</label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="cursor" id="product-cursor" checked>
+              <label class="form-check-label" for="product-cursor">Cursor</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="replit" id="product-replit" checked>
+              <label class="form-check-label" for="product-replit">Replit</label>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="scrape-limit" class="form-label">Maximum Posts per Product</label>
+            <input type="number" class="form-control" id="scrape-limit" value="100" min="10" max="500">
+          </div>
+          
+          <div class="mb-3">
+            <label for="time-filter" class="form-label">Time Period</label>
+            <select class="form-select" id="time-filter">
+              <option value="day">Past 24 hours</option>
+              <option value="week">Past week</option>
+              <option value="month" selected>Past month</option>
+              <option value="year">Past year</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="use-openai">
+              <label class="form-check-label" for="use-openai">Use OpenAI for Advanced Analysis</label>
+            </div>
+            <div class="form-text text-muted">Requires an OpenAI API key to be configured in the .env file</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="subreddits" class="form-label">Subreddits (Optional)</label>
+            <input type="text" class="form-control" id="subreddits" placeholder="programming,webdev,learnprogramming (comma-separated)">
+            <div class="form-text">Leave blank to search all of Reddit</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="start-scrape-btn">Start Scraping</button>
+      </div>
+    </div>
+  </div>
+</div>

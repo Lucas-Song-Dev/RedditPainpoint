@@ -1,45 +1,44 @@
 import os
 import logging
-
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import DeclarativeBase
 from flask_cors import CORS
+from flask_restful import Api
 
-
-class Base(DeclarativeBase):
-    pass
-
-
-# Configure logging
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-db = SQLAlchemy(model_class=Base)
-# create the app
-app = Flask(__name__, static_folder='static')
+# Initialize Flask app
+app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
-# Configure CORS to allow requests from the frontend
+# Enable CORS
 CORS(app)
 
-# configure the database, relative to the app instance folder
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///reddit_data.db")
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# Initialize Flask-RESTful API
+api = Api(app)
 
-# Initialize the app with the extension
-db.init_app(app)
+# Initialize in-memory data store
+# This will hold our scraped and analyzed data
+class DataStore:
+    def __init__(self):
+        self.raw_posts = []
+        self.analyzed_posts = []
+        self.pain_points = {}
+        self.subreddits_scraped = set()
+        self.last_scrape_time = None
+        self.scrape_in_progress = False
+        self.openai_analyses = {}
 
-with app.app_context():
-    # Import the models here so their tables will be created
-    import models  # noqa: F401
-    db.create_all()
-    logger.debug("Database tables created")
+# Create a singleton instance of DataStore
+data_store = DataStore()
 
-# Import and register routes
-from routes import register_routes
-register_routes(app)
+# Import routes after app initialization to avoid circular imports
+from api import initialize_routes
+initialize_routes(api)
+
+# Import and register the main blueprint
+from routes import main_bp
+app.register_blueprint(main_bp)
+
+logger.info("App initialized successfully")

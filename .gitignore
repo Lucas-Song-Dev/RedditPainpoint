@@ -32,6 +32,7 @@ env/
 .env/
 env.bak/
 venv.bak/
+.env
 
 # Flask instance folder
 instance/
