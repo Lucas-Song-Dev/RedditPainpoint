@@ -26,6 +26,26 @@ A Flask-based web application that scrapes Reddit for mentions of software produ
 3. Install dependencies: `pip install -r requirements.txt`
 4. Run the application: `python main.py`
 
+ENV file setup
+
+```
+# Reddit API Credentials (Required for scraping)
+# Create an app at https://www.reddit.com/prefs/apps
+REDDIT_CLIENT_ID=your_client_id
+REDDIT_CLIENT_SECRET=your_client_secret
+
+# OpenAI API Key (Optional, for advanced pain point analysis)
+# Get from https://platform.openai.com/api-keys
+OPENAI_API_KEY=your_openai_api_key
+
+# Flask session secret key (for security)
+SESSION_SECRET=change_this_to_a_random_string
+
+# Optional: Database configuration if you decide to use a database in the future
+# DATABASE_URL=postgresql://username:password@localhost/dbname
+
+```
+
 ## API Documentation
 
 ### API Endpoints
@@ -39,6 +59,7 @@ POST /api/scrape
 Start a scraping job for Reddit posts.
 
 **Request Parameters:**
+
 - `products` (array, optional): List of product names to scrape. Defaults to ["cursor", "replit"].
 - `limit` (integer, optional): Maximum number of posts to scrape per product. Defaults to 100.
 - `subreddits` (array, optional): List of subreddits to search. If not provided, searches all of Reddit.
@@ -46,6 +67,7 @@ Start a scraping job for Reddit posts.
 - `use_openai` (boolean, optional): Whether to use OpenAI to analyze common pain points. Defaults to false.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -63,11 +85,13 @@ GET /api/pain-points
 Get all identified pain points.
 
 **Query Parameters:**
+
 - `product` (string, optional): Filter by product name.
 - `limit` (integer, optional): Limit number of results.
 - `min_severity` (float, optional): Minimum severity score (0-1).
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -81,7 +105,7 @@ Get all identified pain points.
       "avg_sentiment": -0.75,
       "severity": 0.85,
       "related_posts": ["post-id-1", "post-id-2"]
-    },
+    }
     // More pain points...
   ],
   "last_updated": "2023-08-15T10:30:45"
@@ -97,6 +121,7 @@ GET /api/posts
 Get all scraped posts.
 
 **Query Parameters:**
+
 - `product` (string, optional): Filter by product name.
 - `limit` (integer, optional): Limit number of results.
 - `has_pain_points` (boolean, optional): Only return posts with identified pain points.
@@ -107,6 +132,7 @@ Get all scraped posts.
 - `sort_order` (string, optional): Sort order ('asc' or 'desc'). Default: 'desc'.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -124,7 +150,7 @@ Get all scraped posts.
       "sentiment": -0.65,
       "topics": ["performance", "stability"],
       "pain_points": ["Crashes on large files", "Memory usage"]
-    },
+    }
     // More posts...
   ],
   "filters_applied": {
@@ -151,6 +177,7 @@ GET /api/status
 Get current status of the scraper.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -174,9 +201,11 @@ GET /api/openai-analysis
 Get the OpenAI analysis of pain points.
 
 **Query Parameters:**
+
 - `product` (string, optional): Filter by product name.
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -191,7 +220,7 @@ Get the OpenAI analysis of pain points.
           "description": "Users report slowdowns and lag, particularly with large files or projects.",
           "frequency": 28,
           "sentiment": -0.78
-        },
+        }
         // More pain points...
       ],
       "recommendations": [
@@ -200,10 +229,10 @@ Get the OpenAI analysis of pain points.
           "description": "Create an extension that optimizes large files for better performance in Cursor.",
           "complexity": "Medium",
           "impact": "High"
-        },
+        }
         // More recommendations...
       ]
-    },
+    }
     // More product analyses...
   ]
 }
@@ -214,6 +243,7 @@ Get the OpenAI analysis of pain points.
 When the `use_openai` parameter is set to `true` in the scrape API call, the system uses OpenAI to perform advanced analysis of the pain points. This requires an OpenAI API key to be set in the `.env` file.
 
 The OpenAI analysis provides:
+
 - A summary of common pain points
 - Categorized pain points with frequency and sentiment analysis
 - Recommendations for potential browser extensions or tools to address these pain points
