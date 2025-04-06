@@ -129,6 +129,8 @@ class NLPAnalyzer:
             return "Cursor"
         elif "replit" in full_text:
             return "Replit"
+        elif "clio" in full_text:
+            return "Clio"
         
         return None
     
