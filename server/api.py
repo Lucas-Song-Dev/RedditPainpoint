@@ -93,7 +93,7 @@ class ScrapePosts(Resource):
                     all_posts.extend(product_posts)
                 
                 # Analyze posts with NLP
-                analyzer.analyze_posts(all_posts)
+                analyzer.analyze_posts(all_posts, products)
                 
                 # If OpenAI analysis is requested, analyze common pain points
                 if use_openai and all_posts:
@@ -102,8 +102,9 @@ class ScrapePosts(Resource):
                     # Group posts by product
                     posts_by_product = {}
                     for post in all_posts:
-                        product = analyzer.get_product_from_post(post)
-                        if product:
+                        matching_products = analyzer.get_product_from_post(post, products)
+                        # A post can now match multiple products
+                        for product in matching_products:
                             if product not in posts_by_product:
                                 posts_by_product[product] = []
                             posts_by_product[product].append(post)
@@ -226,10 +227,11 @@ class GetPosts(Resource):
         
         # Get all posts
         posts = data_store.analyzed_posts if data_store.analyzed_posts else data_store.raw_posts
-        
-        # Apply filters
+        print(posts)
+       # Apply filters
         if product:
-            posts = [p for p in posts if analyzer.get_product_from_post(p) == product]
+            # Filter posts that mention the specified product
+            posts = [p for p in posts if product in analyzer.get_product_from_post(p, [product])]
         
         if has_pain_points:
             posts = [p for p in posts if hasattr(p, 'pain_points') and p.pain_points]
@@ -351,7 +353,6 @@ class GetStatus(Resource):
                 "openai": openai_status
             }
         }
-
 class GetOpenAIAnalysis(Resource):
     """API endpoint to get OpenAI analysis results"""
     def get(self):
@@ -359,14 +360,16 @@ class GetOpenAIAnalysis(Resource):
         Get the OpenAI analysis of pain points
         
         GET parameters:
-        - product (str): Filter by product name (optional)
+        - product (str): Single product name (optional, for backward compatibility)
+        - products (str): Comma-separated list of product names (optional)
         - openai_api_key (str): OpenAI API key (optional, can be provided in header instead)
         
         Returns:
             JSON response with OpenAI analysis data
         """
-        # Get parameters
+        # Get query parameters
         product = request.args.get('product')
+        products_param = request.args.get('products')
         
         # Get API key from query params or headers
         api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
@@ -382,7 +385,6 @@ class GetOpenAIAnalysis(Resource):
                 "openai_enabled": False
             }, 400
         
-        # If no analyses available
         if not data_store.openai_analyses:
             return {
                 "status": "info",
@@ -390,21 +392,43 @@ class GetOpenAIAnalysis(Resource):
                 "openai_enabled": True,
                 "analyses": []
             }
-            
-        # If product is specified, return only that product's analysis
-        if product and product in data_store.openai_analyses:
+
+        # Parse multiple products
+        matched_analyses = []
+        if products_param:
+            requested_products = [p.strip().lower() for p in products_param.split(',') if p.strip()]
+            for prod in requested_products:
+                for key in data_store.openai_analyses:
+                    if key.lower() == prod:
+                        matched_analyses.append(data_store.openai_analyses[key])
             return {
                 "status": "success",
                 "openai_enabled": True,
-                "analyses": [data_store.openai_analyses[product]]
+                "analyses": matched_analyses
             }
-        
-        # Return all analyses
+
+        # Single product (legacy support)
+        if product:
+            for key in data_store.openai_analyses:
+                if key.lower() == product.lower():
+                    return {
+                        "status": "success",
+                        "openai_enabled": True,
+                        "analyses": [data_store.openai_analyses[key]]
+                    }
+            return {
+                "status": "success",
+                "openai_enabled": True,
+                "analyses": []
+            }
+
+        # Return all analyses if no filters are applied
         return {
             "status": "success",
             "openai_enabled": True,
             "analyses": list(data_store.openai_analyses.values())
         }
+
     
 
 class UpdateCredentials(Resource):

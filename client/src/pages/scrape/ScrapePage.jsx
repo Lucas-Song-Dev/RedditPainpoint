@@ -1,19 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { triggerScrape } from "@/api/api.js";
 import "./ScrapePage.scss";
 
 const ScrapePage = () => {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
-  const [formData, setFormData] = useState({
-    subreddits: ["webdev", "python"],
-    products: ["cursor", "replit"],
-    limit: 75,
-    time_filter: "week",
-    use_openai: true,
+
+  // Initialize form data from localStorage or use defaults
+  const [formData, setFormData] = useState(() => {
+    try {
+      const savedData = localStorage.getItem("scrape_form_data");
+      if (savedData) {
+        return JSON.parse(savedData);
+      }
+    } catch (err) {
+      console.error("Error parsing localStorage data:", err);
+    }
+
+    // Default values if nothing in localStorage
+    return {
+      subreddits: ["webdev", "python"],
+      products: ["cursor", "replit"],
+      limit: 75,
+      time_filter: "week",
+      use_openai: true,
+    };
   });
+
   const [customSubreddit, setCustomSubreddit] = useState("");
   const [customProduct, setCustomProduct] = useState("");
+
+  // Save form data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("scrape_form_data", JSON.stringify(formData));
+  }, [formData]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -80,6 +100,21 @@ const ScrapePage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Reset to default values
+  const handleReset = () => {
+    const defaultData = {
+      subreddits: ["webdev", "python"],
+      products: ["cursor", "replit"],
+      limit: 75,
+      time_filter: "week",
+      use_openai: true,
+    };
+
+    setFormData(defaultData);
+    // Update localStorage with defaults
+    localStorage.setItem("scrape_form_data", JSON.stringify(defaultData));
   };
 
   return (
@@ -196,17 +231,27 @@ const ScrapePage = () => {
         </div>
       </div>
 
-      <button
-        onClick={handleScrape}
-        disabled={
-          loading ||
-          formData.subreddits.length === 0 ||
-          formData.products.length === 0
-        }
-        className="scrape-button"
-      >
-        {loading ? "Scraping..." : "Start Scraping Reddit Posts"}
-      </button>
+      <div className="actions-container">
+        <button
+          onClick={handleScrape}
+          disabled={
+            loading ||
+            formData.subreddits.length === 0 ||
+            formData.products.length === 0
+          }
+          className="scrape-button"
+        >
+          {loading ? "Scraping..." : "Start Scraping Reddit Posts"}
+        </button>
+
+        <button
+          onClick={handleReset}
+          className="reset-button"
+          disabled={loading}
+        >
+          Reset to Defaults
+        </button>
+      </div>
 
       {response && (
         <div className="results-container">

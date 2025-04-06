@@ -4,13 +4,36 @@ import { fetchOpenAIAnalysis } from "@/api/api.js";
 import "./analysisPage.scss";
 
 const OpenAIAnalysis = () => {
+  // Load initial products from localStorage or use default "Cursor"
   const [analysis, setAnalysis] = useState([]);
   const [filteredAnalysis, setFilteredAnalysis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [product, setProduct] = useState("Cursor");
+
+  // Filters and sorting state
+  const [products, setProducts] = useState(() => {
+    try {
+      const savedProducts = localStorage.getItem("analysis_products");
+      return savedProducts ? JSON.parse(savedProducts) : ["Cursor"];
+    } catch (err) {
+      console.error("Error parsing products from localStorage:", err);
+      return ["Cursor"];
+    }
+  });
+  const [productInput, setProductInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [sortCriteria, setSortCriteria] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
+
+  // UI state
   const [expandedPainPoints, setExpandedPainPoints] = useState({});
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Save products to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("analysis_products", JSON.stringify(products));
+  }, [products]);
 
   // Fetch analysis from API
   const fetchAnalysis = async () => {
@@ -19,7 +42,7 @@ const OpenAIAnalysis = () => {
 
     try {
       const data = await fetchOpenAIAnalysis({
-        product,
+        product: products, // Send array of products
         openai_api_key: import.meta.env.VITE_OPENAI_API_KEY,
       });
 
@@ -40,35 +63,89 @@ const OpenAIAnalysis = () => {
     fetchAnalysis();
   }, []);
 
-  // Filter analysis based on search term
+  // Filter and sort analysis based on all criteria
   useEffect(() => {
     if (!analysis.length) return;
 
-    if (!searchTerm.trim()) {
-      setFilteredAnalysis(analysis);
-      return;
+    let filtered = [...analysis];
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((item) => {
+        // Search in product name
+        if (item.product?.toLowerCase().includes(term)) return true;
+
+        // Search in analysis summary
+        if (item.analysis_summary?.toLowerCase().includes(term)) return true;
+
+        // Search in pain points
+        const painPointMatch = item.common_pain_points?.some(
+          (point) =>
+            point.name?.toLowerCase().includes(term) ||
+            point.description?.toLowerCase().includes(term) ||
+            (point.related_keywords &&
+              point.related_keywords.some((kw) =>
+                kw.toLowerCase().includes(term)
+              ))
+        );
+
+        return painPointMatch;
+      });
     }
 
-    const term = searchTerm.toLowerCase();
-    const filtered = analysis.filter((item) => {
-      // Search in product name
-      if (item.product?.toLowerCase().includes(term)) return true;
+    // Apply severity filter to pain points within each analysis
+    if (severityFilter !== "all") {
+      filtered = filtered
+        .map((item) => ({
+          ...item,
+          common_pain_points: item.common_pain_points.filter(
+            (point) => point.severity?.toLowerCase() === severityFilter
+          ),
+        }))
+        .filter((item) => item.common_pain_points.length > 0);
+    }
 
-      // Search in analysis summary
-      if (item.analysis_summary?.toLowerCase().includes(term)) return true;
+    // Sort the pain points within each analysis
+    filtered = filtered.map((item) => {
+      const sortedPainPoints = [...item.common_pain_points].sort((a, b) => {
+        let valueA, valueB;
 
-      // Search in pain points
-      const painPointMatch = item.common_pain_points?.some(
-        (point) =>
-          point.name?.toLowerCase().includes(term) ||
-          point.description?.toLowerCase().includes(term)
-      );
+        // Determine sorting values based on criteria
+        switch (sortCriteria) {
+          case "name":
+            valueA = a.name?.toLowerCase() || "";
+            valueB = b.name?.toLowerCase() || "";
+            break;
+          case "severity": {
+            const severityMap = { high: 3, medium: 2, low: 1 };
+            valueA = severityMap[a.severity?.toLowerCase()] || 0;
+            valueB = severityMap[b.severity?.toLowerCase()] || 0;
+            break;
+          }
+          default:
+            valueA = a.name?.toLowerCase() || "";
+            valueB = b.name?.toLowerCase() || "";
+        }
 
-      return painPointMatch;
+        // Apply sort direction
+        return sortDirection === "asc"
+          ? valueA > valueB
+            ? 1
+            : -1
+          : valueA < valueB
+          ? 1
+          : -1;
+      });
+
+      return {
+        ...item,
+        common_pain_points: sortedPainPoints,
+      };
     });
 
     setFilteredAnalysis(filtered);
-  }, [analysis, searchTerm]);
+  }, [analysis, searchTerm, severityFilter, sortCriteria, sortDirection]);
 
   // Toggle pain point expansion
   const togglePainPoint = (analysisIndex, pointIndex) => {
@@ -80,8 +157,22 @@ const OpenAIAnalysis = () => {
   };
 
   // Handle product input change
-  const handleProductChange = (e) => {
-    setProduct(e.target.value);
+  const handleProductInputChange = (e) => {
+    setProductInput(e.target.value);
+  };
+
+  // Add a product to the products array
+  const addProduct = (e) => {
+    e.preventDefault();
+    if (productInput.trim() && !products.includes(productInput.trim())) {
+      setProducts((prev) => [...prev, productInput.trim()]);
+      setProductInput("");
+    }
+  };
+
+  // Remove a product from the products array
+  const removeProduct = (productToRemove) => {
+    setProducts((prev) => prev.filter((p) => p !== productToRemove));
   };
 
   // Handle search input change
@@ -95,6 +186,40 @@ const OpenAIAnalysis = () => {
     fetchAnalysis();
   };
 
+  // Handle sort criteria change
+  const handleSortChange = (e) => {
+    setSortCriteria(e.target.value);
+  };
+
+  // Handle sort direction change
+  const toggleSortDirection = () => {
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
+  // Handle severity filter change
+  const handleSeverityChange = (e) => {
+    setSeverityFilter(e.target.value);
+  };
+
+  // Toggle advanced filters visibility
+  const toggleFilters = () => {
+    setShowFilters((prev) => !prev);
+  };
+
+  // Get severity badge class
+  const getSeverityClass = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case "high":
+        return "severity-high";
+      case "medium":
+        return "severity-medium";
+      case "low":
+        return "severity-low";
+      default:
+        return "severity-unknown";
+    }
+  };
+
   return (
     <div className="analysis-container">
       <div className="analysis-header">
@@ -102,25 +227,51 @@ const OpenAIAnalysis = () => {
         <p>AI-generated insights about pain points from Reddit discussions</p>
       </div>
 
-      {/* Filters and Search */}
-      <div className="analysis-filters">
-        <form onSubmit={handleSubmit} className="product-form">
+      {/* Products Selection */}
+      <div className="products-section">
+        <form onSubmit={addProduct} className="product-form">
           <div className="input-group">
-            <label>Product</label>
+            <label>Add Product</label>
             <div className="product-input-container">
               <input
                 type="text"
-                value={product}
-                onChange={handleProductChange}
+                value={productInput}
+                onChange={handleProductInputChange}
                 placeholder="Enter product name"
               />
-              <button type="submit" disabled={loading}>
-                {loading ? "Loading..." : "Analyze"}
-              </button>
+              <button type="submit">Add</button>
             </div>
           </div>
         </form>
 
+        <div className="selected-products">
+          <label>Selected Products</label>
+          <div className="product-tags">
+            {products.map((prod, index) => (
+              <div key={index} className="product-tag">
+                <span>{prod}</span>
+                <button
+                  className="remove-product"
+                  onClick={() => removeProduct(prod)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={loading || products.length === 0}
+          className="analyze-button"
+        >
+          {loading ? "Loading..." : "Analyze Products"}
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="search-section">
         <div className="search-container">
           <input
             type="text"
@@ -132,6 +283,54 @@ const OpenAIAnalysis = () => {
           <div className="search-icon">🔍</div>
         </div>
       </div>
+
+      {/* Advanced Filters Button */}
+      <button className="toggle-filters-button" onClick={toggleFilters}>
+        {showFilters ? "Hide Advanced Filters" : "Show Advanced Filters"}
+      </button>
+
+      {/* Advanced Filters */}
+      {showFilters && (
+        <div className="advanced-filters">
+          <div className="filter-row">
+            <div className="filter-group">
+              <label>Severity Filter</label>
+              <select
+                value={severityFilter}
+                onChange={handleSeverityChange}
+                className="filter-select"
+              >
+                <option value="all">All Severities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Sort By</label>
+              <select
+                value={sortCriteria}
+                onChange={handleSortChange}
+                className="filter-select"
+              >
+                <option value="name">Pain Point Name</option>
+                <option value="severity">Severity</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Sort Direction</label>
+              <button
+                className="sort-direction-button"
+                onClick={toggleSortDirection}
+              >
+                {sortDirection === "asc" ? "Ascending ↑" : "Descending ↓"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Message */}
       {error && <div className="error-message">{error}</div>}
@@ -156,6 +355,21 @@ const OpenAIAnalysis = () => {
               {searchTerm &&
                 filteredAnalysis.length !== analysis.length &&
                 ` (filtered from ${analysis.length} total)`}
+              {/* Pain points count */}
+              {filteredAnalysis.reduce(
+                (total, item) => total + item.common_pain_points.length,
+                0
+              ) > 0 && (
+                <span className="pain-points-count">
+                  {" "}
+                  with{" "}
+                  {filteredAnalysis.reduce(
+                    (total, item) => total + item.common_pain_points.length,
+                    0
+                  )}{" "}
+                  pain points
+                </span>
+              )}
             </div>
           )}
 
@@ -175,18 +389,27 @@ const OpenAIAnalysis = () => {
 
                   <div className="pain-points-section">
                     <h4>Common Pain Points</h4>
-                    <div className="pain-points-list">
-                      {item.common_pain_points.map((point, pointIndex) => {
-                        const isExpanded =
-                          expandedPainPoints[`${analysisIndex}-${pointIndex}`];
-                        const descriptionLength =
-                          point.description?.length || 0;
+                    {item.common_pain_points.length > 0 ? (
+                      <div className="pain-points-list">
+                        {item.common_pain_points.map((point, pointIndex) => {
+                          const isExpanded =
+                            expandedPainPoints[
+                              `${analysisIndex}-${pointIndex}`
+                            ];
 
-                        return (
-                          <div className="pain-point-item" key={pointIndex}>
-                            <div className="pain-point-header">
-                              <h5>{point.name}</h5>
-                              {descriptionLength > 100 && (
+                          return (
+                            <div className="pain-point-item" key={pointIndex}>
+                              <div className="pain-point-header">
+                                <div className="pain-point-title">
+                                  <h5>{point.name}</h5>
+                                  <span
+                                    className={`severity-badge ${getSeverityClass(
+                                      point.severity
+                                    )}`}
+                                  >
+                                    {point.severity || "Unknown"}
+                                  </span>
+                                </div>
                                 <button
                                   className="expand-button"
                                   onClick={() =>
@@ -195,29 +418,65 @@ const OpenAIAnalysis = () => {
                                 >
                                   {isExpanded ? "Show Less" : "Show More"}
                                 </button>
-                              )}
+                              </div>
+
+                              <div
+                                className={`pain-point-content ${
+                                  isExpanded ? "expanded" : ""
+                                }`}
+                              >
+                                <div className="pain-point-section">
+                                  <h6>Description</h6>
+                                  <p className="pain-point-description">
+                                    {point.description}
+                                  </p>
+                                </div>
+
+                                {point.potential_solutions && (
+                                  <div className="pain-point-section">
+                                    <h6>Potential Solutions</h6>
+                                    <p className="pain-point-solutions">
+                                      {point.potential_solutions}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {point.related_keywords &&
+                                  point.related_keywords.length > 0 && (
+                                    <div className="pain-point-section">
+                                      <h6>Related Keywords</h6>
+                                      <div className="keywords-list">
+                                        {point.related_keywords.map(
+                                          (keyword, keywordIndex) => (
+                                            <span
+                                              key={keywordIndex}
+                                              className="keyword-tag"
+                                            >
+                                              {keyword}
+                                            </span>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
                             </div>
-                            <p
-                              className={`pain-point-description ${
-                                isExpanded ? "expanded" : ""
-                              }`}
-                            >
-                              {descriptionLength > 100 && !isExpanded
-                                ? `${point.description.substring(0, 100)}...`
-                                : point.description}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="no-pain-points">
+                        No pain points match your current filters.
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
             ) : (
               <div className="no-results">
                 {analysis.length > 0
-                  ? "No analysis results match your search. Try different search terms."
-                  : "No analysis results available. Try a different product or check your API key."}
+                  ? "No analysis results match your search. Try different search terms or filters."
+                  : "No analysis results available. Try selecting different products or check your API key."}
               </div>
             )}
           </div>

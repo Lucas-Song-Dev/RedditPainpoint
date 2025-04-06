@@ -78,18 +78,19 @@ class OpenAIAnalyzer:
             
         # Create a prompt for OpenAI
         prompt = f"""
-        Analyze the following Reddit posts about {product_name} to identify common pain points:
-        
+        Analyze the following Reddit posts that may be related to {product_name}. Your task is to identify up to 10 distinct pain points that users have *clearly* associated with {product_name}. Do not include general complaints unless they are specifically tied to {product_name}.
+
         {json.dumps(post_texts, indent=2)}
-        
-        Please identify the top 5 most common pain points from these posts, focusing on real issues that users are experiencing. 
-        
+
+        From these posts, extract only the pain points that are genuinely and explicitly relevant to {product_name}.
+
         For each pain point, provide:
         1. A concise name (max 3-5 words)
         2. A detailed description of the issue
         3. The severity level (high, medium, low)
         4. Potential solutions or workarounds
-        
+        5. Related keywords or phrases that frequently appear
+
         Respond with valid JSON in this exact format:
         {{
             "common_pain_points": [
@@ -103,6 +104,8 @@ class OpenAIAnalyzer:
             ],
             "analysis_summary": "Brief overview of your findings"
         }}
+
+        Only include up to 10 pain points and skip any that are not clearly connected to {product_name}.
         """
         
         try:
@@ -169,6 +172,7 @@ class OpenAIAnalyzer:
         2. Detailed description of the solution
         3. Implementation complexity (high, medium, low)
         4. Potential impact on user experience (high, medium, low)
+        5. Date of the last user post containg this issue (YYYY-MM-DD)
         
         Respond with valid JSON in this exact format:
         {{
@@ -178,7 +182,8 @@ class OpenAIAnalyzer:
                     "description": "Detailed description",
                     "complexity": "high|medium|low",
                     "impact": "high|medium|low",
-                    "addresses_pain_points": ["pain point name 1", "pain point name 2"]
+                    "addresses_pain_points": ["pain point name 1", "pain point name 2", ...],
+                    "most_recent_occurence": "YYYY-MM-DD"
                 }}
             ],
             "summary": "Brief overview of your recommendations"

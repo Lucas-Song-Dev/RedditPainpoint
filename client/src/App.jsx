@@ -6,6 +6,7 @@ import Post from "./pages/postsPage/PostsPage";
 import Scrape from "./pages/scrape/ScrapePage";
 import Analysis from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrape/ScrapePage";
+import StatusBar from "./components/StatusBar"; // Import the StatusBar component
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -83,7 +84,10 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <div className="main-content">{renderContent()}</div>
+      <div className="main-content">
+        <StatusBar />
+        {renderContent()}
+      </div>
     </div>
   );
 }

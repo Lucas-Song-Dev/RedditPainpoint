@@ -88,7 +88,7 @@ export const fetchPainPoints = async (filters = {}) => {
 /**
  * Get OpenAI-generated analysis of pain points
  * @param {{
- *   product?: string,
+ *   product?: [string],
  *   openai_api_key: string
  * }} options
  */

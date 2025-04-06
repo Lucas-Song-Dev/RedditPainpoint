@@ -113,33 +113,33 @@ class NLPAnalyzer:
         # Deduplicate
         return list(set(pain_points))
     
-    def get_product_from_post(self, post):
+    def get_product_from_post(self, post, products):
         """
-        Determine which product the post is talking about
+        Determine which products the post is talking about
         
         Args:
             post (RedditPost): The Reddit post
+            products (list): List of product names to check for
             
         Returns:
-            str: Product name or None
+            list: List of matching product names or empty list if none match
         """
         full_text = f"{post.title} {post.content}".lower()
+        matching_products = []
+
+        for p in products:
+            if p.lower() in full_text:
+                matching_products.append(p)
         
-        if "cursor" in full_text:
-            return "Cursor"
-        elif "replit" in full_text:
-            return "Replit"
-        elif "clio" in full_text:
-            return "Clio"
-        
-        return None
+        return matching_products
     
-    def categorize_pain_points(self, posts):
+    def categorize_pain_points(self, posts, products):
         """
         Categorize and aggregate pain points from multiple posts
         
         Args:
             posts (list): List of RedditPost objects
+            products (list): List of product names to check for
             
         Returns:
             dict: Dictionary of pain point categories and their frequencies
@@ -153,48 +153,53 @@ class NLPAnalyzer:
             # Identify pain points
             post.pain_points = self.identify_pain_points(post)
             
-            # Get product
-            product = self.get_product_from_post(post)
+            # Get all matching products for this post
+            matching_products = self.get_product_from_post(post, products)
             
             # Extract topics/keywords
             post.topics = self.extract_keywords(f"{post.title} {post.content}")
             
             # Only process posts that mention pain points
-            if post.pain_points:
+            if post.pain_points and matching_products:
                 for pain_point in post.pain_points:
                     category, indicator = pain_point.split(":", 1)
                     
-                    # Create a unique key for this pain point
-                    key = f"{category}:{indicator}"
+                    # Create a base key for this pain point
+                    base_key = f"{category}:{indicator}"
                     
-                    # Initialize if not exists
-                    if key not in pain_point_map:
-                        description = f"Issues with {category} described as '{indicator}'"
-                        pain_point_map[key] = PainPoint(
-                            name=f"{category.title()}: {indicator}",
-                            description=description,
-                            product=product
-                        )
-                    
-                    # Update pain point data
-                    pain_point_obj = pain_point_map[key]
-                    pain_point_obj.frequency += 1
-                    pain_point_obj.related_posts.append(post.id)
-                    
-                    # Update running average of sentiment
-                    current_total = pain_point_obj.avg_sentiment * (len(pain_point_obj.related_posts) - 1)
-                    pain_point_obj.avg_sentiment = (current_total + post.sentiment) / len(pain_point_obj.related_posts)
-                    
-                    # Recalculate severity
-                    pain_point_obj.calculate_severity()
-        
+                    # Create separate entries for each product mentioned in the post
+                    for product in matching_products:
+                        # Create a product-specific key
+                        product_key = f"{base_key}:{product}"
+                        
+                        # Initialize if not exists
+                        if product_key not in pain_point_map:
+                            description = f"Issues with {category} described as '{indicator}' in {product}"
+                            pain_point_map[product_key] = PainPoint(
+                                name=f"{category.title()}: {indicator}",
+                                description=description,
+                                product=product
+                            )
+                        
+                        # Update pain point data
+                        pain_point_obj = pain_point_map[product_key]
+                        pain_point_obj.frequency += 1
+                        pain_point_obj.related_posts.append(post.id)
+                        
+                        # Update running average of sentiment
+                        current_total = pain_point_obj.avg_sentiment * (len(pain_point_obj.related_posts) - 1)
+                        pain_point_obj.avg_sentiment = (current_total + post.sentiment) / len(pain_point_obj.related_posts)
+                        
+                        # Recalculate severity
+                        pain_point_obj.calculate_severity()
+    
         # Add to data store
         data_store.pain_points = pain_point_map
         data_store.analyzed_posts = posts
         
         return pain_point_map
     
-    def analyze_posts(self, posts):
+    def analyze_posts(self, posts, products):
         """
         Analyze a batch of posts
         
@@ -212,7 +217,7 @@ class NLPAnalyzer:
             post.sentiment = self.analyze_sentiment(full_text)
         
         # Categorize pain points
-        pain_points = self.categorize_pain_points(posts)
+        pain_points = self.categorize_pain_points(posts, products)
         
         # Get top pain points by severity
         sorted_pain_points = sorted(
