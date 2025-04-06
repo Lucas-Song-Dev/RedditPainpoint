@@ -2,9 +2,9 @@ import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
-import Post from "./api/Post";
-import Scrape from "./api/Scrape";
-import Analysis from "./api/GPTAnalysis";
+import Post from "./components/Post";
+import Scrape from "./components/Scrape";
+import Analysis from "./components/GPTAnalysis";
 
 function App() {
   const [count, setCount] = useState(0);
