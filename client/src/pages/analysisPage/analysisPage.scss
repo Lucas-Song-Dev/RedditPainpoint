@@ -1,0 +1,320 @@
+// OpenAIAnalysis.scss
+
+.analysis-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  
+  .analysis-header {
+    margin-bottom: 24px;
+  
+    h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+  
+    p {
+      color: #666;
+      font-size: 16px;
+    }
+  }
+  
+  .analysis-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .product-form {
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      
+      label {
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 6px;
+        color: #555;
+      }
+    }
+    
+    .product-input-container {
+      display: flex;
+      
+      input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px 0 0 4px;
+        font-size: 14px;
+        
+        &:focus {
+          outline: none;
+          border-color: #2a76e6;
+        }
+      }
+      
+      button {
+        background-color: #2a76e6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 0 4px 4px 0;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        
+        &:hover:not(:disabled) {
+          background-color: #1a66e6;
+        }
+        
+        &:disabled {
+          background-color: #a0b8e6;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+  
+  .search-container {
+    position: relative;
+    
+    .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 36px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      
+      &:focus {
+        outline: none;
+        border-color: #2a76e6;
+      }
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #777;
+      font-size: 14px;
+    }
+  }
+  
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    
+    p {
+      margin-top: 16px;
+      color: #666;
+      font-style: italic;
+    }
+  }
+  
+  .loading-animation {
+    display: flex;
+    gap: 8px;
+    
+    .loading-circle {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #2a76e6;
+      animation: pulse 1.5s infinite ease-in-out;
+      
+      &:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      
+      &:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(0.5);
+      opacity: 0.5;
+    }
+    50% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  .error-message {
+    background-color: #fff0f0;
+    color: #e53e3e;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 24px;
+    border-left: 4px solid #e53e3e;
+  }
+  
+  .results-meta {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 16px;
+  }
+  
+  .analysis-results {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .analysis-card {
+    background-color: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .analysis-card-header {
+    background-color: #f5f7ff;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e9f5;
+    
+    h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #2a76e6;
+    }
+  }
+  
+  .analysis-summary {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      color: #333;
+    }
+    
+    p {
+      margin: 0;
+      line-height: 1.6;
+      color: #444;
+    }
+  }
+  
+  .pain-points-section {
+    padding: 20px;
+    
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      color: #333;
+    }
+  }
+  
+  .pain-points-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .pain-point-item {
+    background-color: #f8f9fc;
+    border-radius: 6px;
+    padding: 16px;
+    border-left: 3px solid #2a76e6;
+  }
+  
+  .pain-point-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    
+    h5 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+    }
+  }
+  
+  .expand-button {
+    background: none;
+    border: none;
+    color: #2a76e6;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+  
+  .pain-point-description {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #555;
+    
+    &.expanded {
+      white-space: pre-line;
+    }
+  }
+  
+  .no-results {
+    background-color: white;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  // Responsive styles
+  @media (min-width: 768px) {
+    .analysis-filters {
+      flex-direction: row;
+      align-items: flex-end;
+      
+      .product-form {
+        flex: 1;
+      }
+      
+      .search-container {
+        flex: 1;
+      }
+    }
+  }
+  
+  @media (max-width: 767px) {
+    .product-input-container {
+      flex-direction: column;
+      
+      input {
+        border-radius: 4px 4px 0 0;
+      }
+      
+      button {
+        border-radius: 0 0 4px 4px;
+      }
+    }
+  }
