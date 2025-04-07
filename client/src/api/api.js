@@ -67,6 +67,46 @@ export const fetchPosts = async (filters = {}) => {
 };
 
 /**
+ * Get recommendations for addressing pain points
+ * @param {{
+ *   product?: string | string[],
+ *   min_severity?: number,
+ *   openai_api_key: string
+ * }} options
+ */
+export const fetchRecommendations = async ({
+  product,
+  min_severity,
+  openai_api_key,
+}) => {
+  // eslint-disable-next-line no-useless-catch
+  try {
+    // Handle array of products
+    let params = {};
+
+    if (Array.isArray(product)) {
+      params.products = product.join(",");
+    } else if (product) {
+      params.product = product;
+    }
+
+    if (min_severity !== undefined) {
+      params.min_severity = min_severity;
+    }
+
+    const res = await axios.get(`${API_BASE}/recommendations`, {
+      params: params,
+      headers: {
+        "X-OpenAI-API-Key": openai_api_key,
+      },
+    });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
  * Get pain points for a product
  * @param {Object} filters
  * @param {string} [filters.product]
@@ -88,15 +128,16 @@ export const fetchPainPoints = async (filters = {}) => {
 /**
  * Get OpenAI-generated analysis of pain points
  * @param {{
- *   product?: [string],
+ *   products?: string[]
  *   openai_api_key: string
  * }} options
  */
 export const fetchOpenAIAnalysis = async ({ product, openai_api_key }) => {
+  console.log("🚀 ~ fetchOpenAIAnalysis ~ product:", product);
   // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/openai-analysis`, {
-      params: { product },
+      params: { products: product },
       headers: {
         "X-OpenAI-API-Key": openai_api_key,
       },

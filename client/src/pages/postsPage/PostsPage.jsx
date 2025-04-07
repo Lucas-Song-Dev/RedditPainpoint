@@ -210,18 +210,17 @@ const Posts = () => {
 
       {/* Local Search and Filters */}
       <div className="search-filters-section">
-        <div className="search-bar-container">
-          <input
-            type="text"
-            placeholder="Search in posts, titles, subreddits..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            className="search-input"
-          />
-          <div className="search-icon">🔍</div>
-        </div>
-
         <div className="local-filters">
+          <div className="filter-item">
+            <input
+              type="text"
+              placeholder="Search in posts, titles, subreddits..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="search-input"
+            />
+            <div className="search-icon">🔍</div>
+          </div>
           <div className="filter-item">
             <label>Min Score</label>
             <input
@@ -330,7 +329,7 @@ const Posts = () => {
                     <a
                       href={post.url}
                       target="_blank"
-                      rel="noopener noreferrer"
+                      rel="noopener noretch postrrer"
                       className="view-button"
                     >
                       View on Reddit

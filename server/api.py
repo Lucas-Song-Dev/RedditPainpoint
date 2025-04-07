@@ -1,14 +1,18 @@
 import logging
 import json
+import os
 from flask import jsonify, request, Blueprint, current_app
 from flask_restful import Resource
 from datetime import datetime
 from threading import Thread
+from dotenv import load_dotenv
 
 from app import data_store
 from reddit_scraper import RedditScraper
 from nlp_analyzer import NLPAnalyzer
 from openai_analyzer import OpenAIAnalyzer
+
+from mongodb_store import MongoDBStore
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +20,10 @@ logger = logging.getLogger(__name__)
 scraper = RedditScraper()
 analyzer = NLPAnalyzer()
 openai_analyzer = OpenAIAnalyzer()
+# In api_resources.py
 
-# API endpoints as Resources
+mongodb_uri = os.getenv("MONGODB_URI")
+
 class ScrapePosts(Resource):
     """API endpoint to trigger Reddit scraping"""
     def post(self):
@@ -73,6 +79,14 @@ class ScrapePosts(Resource):
         if time_filter not in scraper.time_filters.keys():
             return {"status": "error", "message": f"Invalid time_filter. Must be one of: {', '.join(scraper.time_filters.keys())}"}, 400
         
+        # # Update metadata in MongoDB
+        # data_store.update_metadata(
+        #     scrape_in_progress=True,
+        #     products=products,
+        #     subreddits=subreddits if subreddits else scraper.default_subreddits,
+        #     time_filter=time_filter
+        # )
+        
         # Start scraping in a background thread
         def background_scrape():
             try:
@@ -95,6 +109,22 @@ class ScrapePosts(Resource):
                 # Analyze posts with NLP
                 analyzer.analyze_posts(all_posts, products)
                 
+                # # Save posts to MongoDB
+                # for post in all_posts:
+                #     # Set products for this post
+                #     post.products = analyzer.get_product_from_post(post, products)
+                #     # Save to MongoDB
+                #     data_store.save_post(post)
+                
+                # logger.info(f"Saved {len(all_posts)} posts to MongoDB")
+                
+                # # Process pain points
+                # pain_points = analyzer.categorize_pain_points(all_posts, products)
+                # for pain_point in pain_points.values():
+                #     data_store.save_pain_point(pain_point)
+                
+                # logger.info(f"Saved {len(pain_points)} pain points to MongoDB")
+                
                 # If OpenAI analysis is requested, analyze common pain points
                 if use_openai and all_posts:
                     logger.info("Analyzing common pain points with OpenAI...")
@@ -102,7 +132,7 @@ class ScrapePosts(Resource):
                     # Group posts by product
                     posts_by_product = {}
                     for post in all_posts:
-                        matching_products = analyzer.get_product_from_post(post, products)
+                        matching_products = post.products
                         # A post can now match multiple products
                         for product in matching_products:
                             if product not in posts_by_product:
@@ -114,20 +144,20 @@ class ScrapePosts(Resource):
                         if len(product_posts) > 0:
                             analysis = openai_analyzer.analyze_common_pain_points(product_posts, product)
                             if 'error' not in analysis:
-                                data_store.openai_analyses[product] = analysis
+                                # Save analysis to MongoDB
+                                data_store.save_openai_analysis(product, analysis)
                                 logger.info(f"Stored OpenAI analysis for {product}")
                 
-                # Update timestamp
-                data_store.last_scrape_time = datetime.now()
-                data_store.scrape_in_progress = False
+                # Update metadata to indicate scrape is finished
+                data_store.update_metadata(scrape_in_progress=False)
                 
                 logger.info(f"Completed scraping and analysis of {len(all_posts)} posts")
             except Exception as e:
                 logger.error(f"Error in background scraping: {str(e)}")
-                data_store.scrape_in_progress = False
+                # Update status in case of error
+                data_store.update_metadata(scrape_in_progress=False)
         
         # Start the background thread
-        data_store.scrape_in_progress = True
         scrape_thread = Thread(target=background_scrape)
         scrape_thread.daemon = True
         scrape_thread.start()
@@ -142,6 +172,120 @@ class ScrapePosts(Resource):
             "use_openai": use_openai
         }
 
+
+class GetRecommendations(Resource):
+    """API endpoint to get product recommendations based on pain points"""
+    def get(self):
+        """
+        Get generated recommendations for addressing pain points
+        
+        GET parameters:
+        - product (str): Single product name (optional, for backward compatibility)
+        - products (str): Comma-separated list of product names (optional)
+        - min_severity (float): Minimum severity of pain points to consider (optional)
+        - openai_api_key (str): OpenAI API key (optional, can be provided in header instead)
+        
+        Returns:
+            JSON response with recommendations data
+        """
+        # Get query parameters
+        product = request.args.get('product')
+        products_param = request.args.get('products')
+        min_severity = request.args.get('min_severity', type=float, default=0)
+        
+        # Get API key from query params or headers
+        api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
+        
+        # Initialize OpenAI if API key provided
+        if api_key and not openai_analyzer.api_key:
+            openai_analyzer.initialize_client(api_key)
+        
+        if not openai_analyzer.api_key:
+            return {
+                "status": "error",
+                "message": "OpenAI API key required. Provide it as a query parameter or in the X-OpenAI-API-Key header.",
+                "openai_enabled": False
+            }, 400
+        
+        # Get all pain points from data store
+        pain_points_dict = data_store.pain_points
+        
+        if not pain_points_dict:
+            return {
+                "status": "info",
+                "message": "No pain points available. Use the scrape endpoint to collect data first.",
+                "openai_enabled": True,
+                "recommendations": []
+            }
+        
+        # Store recommendations for each product
+        all_recommendations = []
+        
+        # Parse multiple products
+        if products_param:
+            requested_products = [p.strip().lower() for p in products_param.split(',') if p.strip()]
+            for prod in requested_products:
+                # Get pain points for this product with minimum severity
+                product_pain_points = [
+                    p.to_dict() for p in pain_points_dict.values() 
+                    if p.product.lower() == prod.lower() and p.severity >= min_severity
+                ]
+                
+                if product_pain_points:
+                    # Generate recommendations for this product
+                    recommendations = openai_analyzer.generate_recommendations(product_pain_points, prod)
+                    all_recommendations.append(recommendations)
+                
+            return {
+                "status": "success",
+                "openai_enabled": True,
+                "recommendations": all_recommendations
+            }
+        
+        # Single product (legacy support)
+        if product:
+            # Get pain points for this product with minimum severity
+            product_pain_points = [
+                p.to_dict() for p in pain_points_dict.values() 
+                if p.product.lower() == product.lower() and p.severity >= min_severity
+            ]
+            
+            if product_pain_points:
+                # Generate recommendations for this product
+                recommendations = openai_analyzer.generate_recommendations(product_pain_points, product)
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "recommendations": [recommendations]
+                }
+            else:
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "recommendations": []
+                }
+        
+        # If no product specified, get unique products from pain points
+        unique_products = set(p.product for p in pain_points_dict.values())
+        
+        # Generate recommendations for each product
+        for prod in unique_products:
+            # Get pain points for this product with minimum severity
+            product_pain_points = [
+                p.to_dict() for p in pain_points_dict.values() 
+                if p.product == prod and p.severity >= min_severity
+            ]
+            
+            if product_pain_points:
+                # Generate recommendations for this product
+                recommendations = openai_analyzer.generate_recommendations(product_pain_points, prod)
+                all_recommendations.append(recommendations)
+        
+        return {
+            "status": "success",
+            "openai_enabled": True,
+            "recommendations": all_recommendations
+        }
 class GetPainPoints(Resource):
     """API endpoint to get analyzed pain points"""
     def get(self):
@@ -353,6 +497,7 @@ class GetStatus(Resource):
                 "openai": openai_status
             }
         }
+
 class GetOpenAIAnalysis(Resource):
     """API endpoint to get OpenAI analysis results"""
     def get(self):
@@ -369,7 +514,8 @@ class GetOpenAIAnalysis(Resource):
         """
         # Get query parameters
         product = request.args.get('product')
-        products_param = request.args.get('products')
+        products_param = request.args.getlist('products[]')
+        print("🚀 ~ requested_products:", products_param)
         
         # Get API key from query params or headers
         api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
@@ -395,8 +541,9 @@ class GetOpenAIAnalysis(Resource):
 
         # Parse multiple products
         matched_analyses = []
-        if products_param:
-            requested_products = [p.strip().lower() for p in products_param.split(',') if p.strip()]
+        if len(products_param) > 0:
+            requested_products = [p.strip().lower() for p in products_param if p.strip()]
+            print("🚀 ~ requested_products:", requested_products)
             for prod in requested_products:
                 for key in data_store.openai_analyses:
                     if key.lower() == prod:
@@ -500,6 +647,7 @@ def initialize_routes(api):
     api.add_resource(GetStatus, '/api/status')
     api.add_resource(GetOpenAIAnalysis, '/api/openai-analysis')
     api.add_resource(UpdateCredentials, '/api/credentials')
+    api.add_resource(GetRecommendations, '/api/recommendations')
 
 # Export the blueprint for registration
 main_bp = routes_bp

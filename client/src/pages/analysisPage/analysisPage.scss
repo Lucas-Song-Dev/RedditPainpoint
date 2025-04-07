@@ -108,7 +108,7 @@
   position: relative;
   
   .search-input {
-    width: 100%;
+    width: calc(100% - 10px - 36px - 4px);
     padding: 10px 12px 10px 36px;
     border: 1px solid #ddd;
     border-radius: 4px;

@@ -36,6 +36,10 @@ class DataStore:
         self.last_scrape_time = None
         self.scrape_in_progress = False
         self.openai_analyses = {}
+        # self.update_metadata = update_metadata()
+
+# Add this to your existing DataStore class (likely in data_store.py)
+
 
 # Create a singleton instance of DataStore
 data_store = DataStore()

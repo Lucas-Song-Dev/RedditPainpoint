@@ -4,8 +4,9 @@ import viteLogo from "/vite.svg";
 import "./App.scss";
 import Post from "./pages/postsPage/PostsPage";
 import Scrape from "./pages/scrape/ScrapePage";
-import Analysis from "./pages/analysisPage/AnalysisPage";
+import AnalysisPage from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrape/ScrapePage";
+import RecomendationPage from "./pages/recomendationPage/Recomendation";
 import StatusBar from "./components/StatusBar"; // Import the StatusBar component
 
 function App() {
@@ -28,8 +29,10 @@ function App() {
         return <Post />;
       case "scrapepage":
         return <ScrapePage />;
-      case "analysis":
-        return <Analysis />;
+      case "analysisPage":
+        return <AnalysisPage />;
+      case "recomendationPage":
+        return <RecomendationPage />;
       default:
         return (
           <div>
@@ -74,10 +77,16 @@ function App() {
               Advanced Scrape
             </li>
             <li
-              className={activePage === "analysis" ? "active" : ""}
-              onClick={() => setActivePage("analysis")}
+              className={activePage === "analysisPage" ? "active" : ""}
+              onClick={() => setActivePage("analysisPage")}
             >
               Analysis
+            </li>
+            <li
+              className={activePage === "recomendationPage" ? "active" : ""}
+              onClick={() => setActivePage("recomendationPage")}
+            >
+              Recomendation
             </li>
           </ul>
         </nav>
