@@ -9,6 +9,8 @@ const Posts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  // Add this to your state declarations at the top of the component
+  const [viewMode, setViewMode] = useState("list"); // 'list' or 'grid'
 
   // API filter options
   const [apiFilters, setApiFilters] = useState({
@@ -25,6 +27,11 @@ const Posts = () => {
     maxScore: "",
     subreddit: "",
   });
+
+  // Add this function to handle view mode toggle
+  const toggleViewMode = () => {
+    setViewMode(viewMode === "list" ? "grid" : "list");
+  };
 
   // Load posts from API
   const loadPosts = async () => {
@@ -135,10 +142,22 @@ const Posts = () => {
         <p>View and filter the most recent scraped posts from Reddit</p>
       </div>
 
-      {/* API Filters Section */}
-      <div className="filters-card">
-        <h3 className="filters-title">API Filters</h3>
+      {/* Unified Filters Section */}
+      <div className="filters-container">
+        <h3 className="filters-title">Search & Filters</h3>
+
         <form onSubmit={handleApiSubmit}>
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search in posts, titles, subreddits..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="search-input"
+            />
+            <div className="search-icon">🔍</div>
+          </div>
+
           <div className="filter-grid">
             <div className="filter-item">
               <label>Product</label>
@@ -186,6 +205,44 @@ const Posts = () => {
                 <option value="asc">Ascending</option>
               </select>
             </div>
+
+            <div className="filter-item">
+              <label>Min Score</label>
+              <input
+                type="number"
+                name="minScore"
+                value={localFilters.minScore}
+                onChange={handleLocalFilterChange}
+                placeholder="Min"
+              />
+            </div>
+
+            <div className="filter-item">
+              <label>Max Score</label>
+              <input
+                type="number"
+                name="maxScore"
+                value={localFilters.maxScore}
+                onChange={handleLocalFilterChange}
+                placeholder="Max"
+              />
+            </div>
+
+            <div className="filter-item">
+              <label>Subreddit</label>
+              <select
+                name="subreddit"
+                value={localFilters.subreddit}
+                onChange={handleLocalFilterChange}
+              >
+                <option value="">All Subreddits</option>
+                {uniqueSubreddits.map((subreddit) => (
+                  <option key={subreddit} value={subreddit}>
+                    r/{subreddit}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="filter-bottom">
@@ -208,67 +265,35 @@ const Posts = () => {
         </form>
       </div>
 
-      {/* Local Search and Filters */}
-      <div className="search-filters-section">
-        <div className="local-filters">
-          <div className="filter-item">
-            <input
-              type="text"
-              placeholder="Search in posts, titles, subreddits..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="search-input"
-            />
-            <div className="search-icon">🔍</div>
-          </div>
-          <div className="filter-item">
-            <label>Min Score</label>
-            <input
-              type="number"
-              name="minScore"
-              value={localFilters.minScore}
-              onChange={handleLocalFilterChange}
-              placeholder="Min"
-            />
-          </div>
-
-          <div className="filter-item">
-            <label>Max Score</label>
-            <input
-              type="number"
-              name="maxScore"
-              value={localFilters.maxScore}
-              onChange={handleLocalFilterChange}
-              placeholder="Max"
-            />
-          </div>
-
-          <div className="filter-item">
-            <label>Subreddit</label>
-            <select
-              name="subreddit"
-              value={localFilters.subreddit}
-              onChange={handleLocalFilterChange}
-            >
-              <option value="">All Subreddits</option>
-              {uniqueSubreddits.map((subreddit) => (
-                <option key={subreddit} value={subreddit}>
-                  r/{subreddit}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            className="clear-button"
-            onClick={handleClearFilters}
-            type="button"
-          >
-            Clear Filters
-          </button>
-        </div>
+      <button
+        className="clear-button"
+        onClick={handleClearFilters}
+        type="button"
+      >
+        Clear Filters
+      </button>
+      {/* View Mode Toggle */}
+      <div className="view-toggle-container">
+        <span className="view-toggle-label">View:</span>
+        <button
+          className={`view-toggle-button ${
+            viewMode === "list" ? "active" : ""
+          }`}
+          onClick={() => setViewMode("list")}
+          title="List View"
+        >
+          <span className="icon">☰</span>
+        </button>
+        <button
+          className={`view-toggle-button ${
+            viewMode === "grid" ? "active" : ""
+          }`}
+          onClick={() => setViewMode("grid")}
+          title="Grid View"
+        >
+          <span className="icon">⊞</span>
+        </button>
       </div>
-
       {/* Results Metadata */}
       <div className="results-meta">
         <span className="results-count">
@@ -288,56 +313,178 @@ const Posts = () => {
       {loading ? (
         <div className="loading-indicator">Loading posts...</div>
       ) : (
-        <div className="posts-list">
+        <div
+          className={`posts-container ${
+            viewMode === "grid" ? "grid-view" : "list-view"
+          }`}
+        >
           {filteredPosts.length > 0 ? (
-            filteredPosts.map((post) => (
-              <div className="post-card" key={post.id}>
-                <div className="post-header">
-                  <h3 className="post-title">{post.title}</h3>
-                  <div className="post-score">{post.score} points</div>
-                </div>
+            viewMode === "list" ? (
+              // List View (Detailed)
+              <div className="posts-list">
+                {filteredPosts.map((post) => (
+                  <div className="post-card" key={post.id}>
+                    <div className="post-header">
+                      <h3 className="post-title">{post.title}</h3>
+                      <div className="post-score">{post.score} points</div>
+                    </div>
 
-                <div className="post-meta">
-                  <span className="subreddit">r/{post.subreddit}</span>
-                  <span className="separator">•</span>
-                  <span className="author">u/{post.author}</span>
-                  {post.created_at && (
-                    <>
+                    <div className="post-meta">
+                      <span className="subreddit">r/{post.subreddit}</span>
                       <span className="separator">•</span>
-                      <span className="date">
-                        {new Date(post.created_at).toLocaleDateString()}
-                      </span>
-                    </>
-                  )}
-                </div>
+                      <span className="author">u/{post.author}</span>
+                      {post.created_utc && (
+                        <>
+                          <span className="separator">•</span>
+                          <span className="date">
+                            {new Date(post.created_utc).toLocaleDateString()}
+                          </span>
+                        </>
+                      )}
+                      {post.sentiment && (
+                        <>
+                          <span className="separator">•</span>
+                          <span
+                            className={`sentiment ${
+                              post.sentiment > 0
+                                ? "positive"
+                                : post.sentiment < 0
+                                ? "negative"
+                                : "neutral"
+                            }`}
+                          >
+                            Sentiment: {post.sentiment.toFixed(2)}
+                          </span>
+                        </>
+                      )}
+                    </div>
 
-                {post.body && (
-                  <div className="post-body">
-                    <p>
-                      {post.body.length > 200
-                        ? post.body.substring(0, 200) + "..."
-                        : post.body}
-                    </p>
-                  </div>
-                )}
+                    {post.body && (
+                      <div className="post-body">
+                        <p>
+                          {post.body.length > 200
+                            ? post.body.substring(0, 200) + "..."
+                            : post.body}
+                        </p>
+                      </div>
+                    )}
 
-                <div className="post-footer">
-                  <div className="comments-count">
-                    {post.num_comments || 0} comments
+                    {/* Products Section */}
+                    {post.products && post.products.length > 0 && (
+                      <div className="post-products">
+                        <h4>Products:</h4>
+                        <div className="tags-container">
+                          {post.products.map((product, index) => (
+                            <span key={index} className="product-tag">
+                              {product}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Topics Section */}
+                    {post.topics && post.topics.length > 0 && (
+                      <div className="post-topics">
+                        <h4>Topics:</h4>
+                        <div className="tags-container">
+                          {post.topics.map((topic, index) => (
+                            <span key={index} className="topic-tag">
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pain Points Section */}
+                    {post.pain_points && post.pain_points.length > 0 && (
+                      <div className="post-pain-points">
+                        <h4>Pain Points:</h4>
+                        <div className="tags-container">
+                          {post.pain_points.map((painPoint, index) => {
+                            const [category, type] = painPoint.split(":");
+                            return (
+                              <span
+                                key={index}
+                                className={`pain-point-tag ${type}`}
+                              >
+                                <span className="category">{category}</span>
+                                <span className="type">{type}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="post-footer">
+                      <div className="comments-count">
+                        {post.num_comments || 0} comments
+                      </div>
+                      {post.url && (
+                        <a
+                          href={post.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="view-button"
+                        >
+                          View on Reddit
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  {post.url && (
-                    <a
-                      href={post.url}
-                      target="_blank"
-                      rel="noopener noretch postrrer"
-                      className="view-button"
-                    >
-                      View on Reddit
-                    </a>
-                  )}
-                </div>
+                ))}
               </div>
-            ))
+            ) : (
+              // Grid View (Compact)
+              <div className="posts-grid">
+                {filteredPosts.map((post) => (
+                  <div className="grid-card" key={post.id}>
+                    <h3 className="grid-title">
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {post.title.length > 80
+                          ? post.title.substring(0, 80) + "..."
+                          : post.title}
+                      </a>
+                    </h3>
+
+                    <div className="grid-meta">
+                      <span className="subreddit">r/{post.subreddit}</span>
+                      <span className="score">{post.score}pts</span>
+                    </div>
+
+                    {post.sentiment && (
+                      <div
+                        className={`grid-sentiment ${
+                          post.sentiment > 0
+                            ? "positive"
+                            : post.sentiment < 0
+                            ? "negative"
+                            : "neutral"
+                        }`}
+                      >
+                        {post.sentiment.toFixed(2)}
+                      </div>
+                    )}
+
+                    {post.products && post.products.length > 0 && (
+                      <div className="grid-products">
+                        {post.products.map((product, index) => (
+                          <span key={index} className="grid-product-tag">
+                            {product}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           ) : (
             <div className="no-posts">
               {posts.length > 0

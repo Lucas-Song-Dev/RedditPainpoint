@@ -1,394 +1,257 @@
-# mongodb_store.py
-from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from datetime import datetime
+import os
 import logging
-import json
-from bson import json_util
+from datetime import datetime
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure, OperationFailure
 
-# Configure logger
 logger = logging.getLogger(__name__)
 
 class MongoDBStore:
-    """MongoDB-based data store for the Reddit scraper application"""
+    """MongoDB data store for Reddit scraper application"""
     
-    def __init__(self, uri):
-        """
-        Initialize the MongoDB connection
-        
-        Args:
-            uri (str): MongoDB connection string
-        """
-        self.uri = uri
+    def __init__(self, mongodb_uri=None):
+        """Initialize MongoDB connection"""
+        self.mongodb_uri = mongodb_uri or os.getenv("MONGODB_URI")
         self.client = None
         self.db = None
         self.scrape_in_progress = False
+        self.pain_points = {}
+        self.raw_posts = []
+        self.analyzed_posts = []
+        self.subreddits_scraped = set()
         self.last_scrape_time = None
-        self.connect()
+        self.openai_analyses = {}
         
+        # Connect to MongoDB if URI is provided
+        if self.mongodb_uri:
+            self.connect()
+    
     def connect(self):
-        """Establish connection to MongoDB"""
+        """Connect to MongoDB database"""
         try:
-            self.client = MongoClient(self.uri, server_api=ServerApi('1'))
-            self.db = self.client.reddit_scraper  # Use 'reddit_scraper' database
+            self.client = MongoClient(self.mongodb_uri)
+            # Test connection
+            self.client.admin.command('ping')
+            # Use 'reddit_scraper' database
+            self.db = self.client.reddit_scraper
+            logger.info("Connected to MongoDB successfully")
             
-            # Create indexes for better performance
-            self._create_indexes()
-            
-            # Load the last scrape time from metadata
-            metadata = self.db.metadata.find_one({"key": "last_scrape"})
-            if metadata:
-                self.last_scrape_time = metadata.get("timestamp")
-                self.scrape_in_progress = metadata.get("scrape_in_progress", False)
-            
-            logger.info("Successfully connected to MongoDB")
+            # Load current metadata if available
+            self._load_metadata()
+            self.load_pain_points()
             return True
-        except Exception as e:
+        except ConnectionFailure as e:
             logger.error(f"Failed to connect to MongoDB: {str(e)}")
             return False
-    
-    def _create_indexes(self):
-        """Create MongoDB indexes for better query performance"""
-        try:
-            # Posts collection indexes
-            self.db.posts.create_index("id", unique=True)
-            self.db.posts.create_index("products")
-            self.db.posts.create_index("subreddit")
-            self.db.posts.create_index("created_at")
-            
-            # Pain points collection indexes
-            self.db.pain_points.create_index([("name", 1), ("product", 1)])
-            self.db.pain_points.create_index("severity")
-            
-            # OpenAI analyses collection indexes
-            self.db.openai_analyses.create_index("product", unique=True)
-            
-            logger.info("Created MongoDB indexes")
         except Exception as e:
-            logger.error(f"Error creating MongoDB indexes: {str(e)}")
-    
-    def save_post(self, post):
-        """
-        Save a post to MongoDB
-        
-        Args:
-            post (RedditPost): The post to save
-        """
-        try:
-            # Convert post object to dictionary
-            post_dict = {
-                "id": post.id,
-                "title": post.title,
-                "content": post.content,
-                "author": post.author,
-                "subreddit": post.subreddit,
-                "url": post.url,
-                "created_at": post.created_at,
-                "score": post.score,
-                "num_comments": post.num_comments,
-                "sentiment": getattr(post, 'sentiment', 0),
-                "pain_points": getattr(post, 'pain_points', []),
-                "topics": getattr(post, 'topics', []),
-                "products": getattr(post, 'products', [])
-            }
-            
-            # Use upsert to avoid duplicates
-            self.db.posts.update_one(
-                {"id": post.id}, 
-                {"$set": post_dict}, 
-                upsert=True
-            )
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error saving post to MongoDB: {str(e)}")
+            logger.error(f"Error connecting to MongoDB: {str(e)}")
             return False
     
-    def save_pain_point(self, pain_point):
-        """
-        Save a pain point to MongoDB
-        
-        Args:
-            pain_point (PainPoint): The pain point to save
-        """
+    def _load_metadata(self):
+        """Load metadata from database"""
         try:
-            # Convert pain point to dictionary
-            pain_point_dict = {
-                "name": pain_point.name,
-                "description": pain_point.description,
-                "product": pain_point.product,
-                "frequency": pain_point.frequency,
-                "avg_sentiment": pain_point.avg_sentiment,
-                "severity": pain_point.severity,
-                "related_posts": pain_point.related_posts
-            }
-            
-            # Use upsert to avoid duplicates
-            self.db.pain_points.update_one(
-                {"name": pain_point.name, "product": pain_point.product}, 
-                {"$set": pain_point_dict}, 
-                upsert=True
-            )
-            
-            return True
+            # Fix the comparison with None instead of bool testing
+            if self.db is not None:
+                metadata = self.db.metadata.find_one({"_id": "scraper_metadata"})
+                if metadata:
+                    self.scrape_in_progress = metadata.get("scrape_in_progress", False)
+                    self.last_scrape_time = metadata.get("last_updated")
+                    logger.info(f"Loaded metadata, scrape_in_progress: {self.scrape_in_progress}")
         except Exception as e:
-            logger.error(f"Error saving pain point to MongoDB: {str(e)}")
-            return False
-    
-    def save_openai_analysis(self, product, analysis):
-        """
-        Save OpenAI analysis results to MongoDB
-        
-        Args:
-            product (str): The product name
-            analysis (dict): The analysis results
-        """
-        try:
-            # Prepare analysis document
-            analysis_dict = {
-                "product": product,
-                "analysis_summary": analysis.get("summary", ""),
-                "common_pain_points": analysis.get("pain_points", []),
-                "timestamp": datetime.now()
-            }
-            
-            # Use upsert to avoid duplicates
-            self.db.openai_analyses.update_one(
-                {"product": product}, 
-                {"$set": analysis_dict}, 
-                upsert=True
-            )
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error saving OpenAI analysis to MongoDB: {str(e)}")
-            return False
-    
-    def save_recommendation(self, product, recommendations):
-        """
-        Save product recommendations to MongoDB
-        
-        Args:
-            product (str): The product name
-            recommendations (dict): The recommendations results
-        """
-        try:
-            # Add product to recommendations if not present
-            if "product" not in recommendations:
-                recommendations["product"] = product
-            
-            # Add timestamp if not present
-            if "timestamp" not in recommendations:
-                recommendations["timestamp"] = datetime.now()
-            
-            # Use upsert to avoid duplicates
-            self.db.recommendations.update_one(
-                {"product": product}, 
-                {"$set": recommendations}, 
-                upsert=True
-            )
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error saving recommendations to MongoDB: {str(e)}")
-            return False
+            logger.error(f"Error loading metadata: {str(e)}")
     
     def update_metadata(self, scrape_in_progress=None, products=None, subreddits=None, time_filter=None):
-        """
-        Update metadata about the scraping process
+        """Update scraper metadata in the database"""
+        # Fix the comparison with None instead of bool testing
+        if self.db is None:
+            logger.error("Cannot update metadata: Database connection not established")
+            return False
         
-        Args:
-            scrape_in_progress (bool): Whether a scrape is in progress
-            products (list): List of products being scraped
-            subreddits (list): List of subreddits being scraped
-            time_filter (str): Time filter used for scraping
-        """
         try:
-            update_data = {"timestamp": datetime.now()}
+            # Prepare update data
+            update_data = {"last_updated": datetime.utcnow()}
             
+            # Only update fields that are provided
             if scrape_in_progress is not None:
                 update_data["scrape_in_progress"] = scrape_in_progress
                 self.scrape_in_progress = scrape_in_progress
             
-            if products is not None:
+            if products:
                 update_data["products"] = products
-            
-            if subreddits is not None:
+                
+            if subreddits:
                 update_data["subreddits"] = subreddits
-            
-            if time_filter is not None:
+                if subreddits:
+                    self.subreddits_scraped.update(subreddits)
+                
+            if time_filter:
                 update_data["time_filter"] = time_filter
             
-            self.db.metadata.update_one(
-                {"key": "last_scrape"}, 
-                {"$set": update_data}, 
+            # Update or insert metadata document
+            result = self.db.metadata.update_one(
+                {"_id": "scraper_metadata"},
+                {"$set": update_data},
                 upsert=True
             )
             
-            # Update the last scrape time
-            self.last_scrape_time = datetime.now()
+            self.last_scrape_time = update_data["last_updated"]
+            
+            logger.info(f"Updated metadata: {update_data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating metadata: {str(e)}")
+            return False
+    def save_post(self, post):
+        """Save Reddit post to database"""
+        # Fix the comparison with None instead of bool testing
+        if self.db is None:
+            logger.error("Cannot save post: Database connection not established")
+            return False
+        
+        try:
+            # Convert post object to dictionary if needed
+            if hasattr(post, 'to_dict'):
+                post_data = post.to_dict()
+            elif isinstance(post, dict):
+                post_data = post
+            else:
+                # Try to convert object attributes to dictionary
+                post_data = {}
+                for attr in dir(post):
+                    if not attr.startswith('__') and not callable(getattr(post, attr)):
+                        post_data[attr] = getattr(post, attr)
+            
+            # Add timestamp if not present
+            if 'created_at' not in post_data:
+                post_data['created_at'] = datetime.utcnow()
+            
+            # Get post ID - either from id attribute or from the 'id' key
+            post_id = None
+            if hasattr(post, 'id'):
+                post_id = post.id
+            elif 'id' in post_data:
+                post_id = post_data['id']
+                
+            if not post_id:
+                logger.error("Cannot save post: No ID available")
+                return False
+                
+            # Use post ID as document ID
+            post_data['_id'] = post_id
+            
+            # Convert any non-serializable objects to strings
+            for key, value in post_data.items():
+                if not isinstance(value, (str, int, float, bool, list, dict, datetime, type(None))):
+                    post_data[key] = str(value)
+            
+            # Insert or update post
+            result = self.db.posts.update_one(
+                {"_id": post_data['_id']},
+                {"$set": post_data},
+                upsert=True
+            )
+            
+            # Add to raw_posts list if it's not already there
+            if post_id not in [p.id if hasattr(p, 'id') else p.get('id', None) for p in self.raw_posts]:
+                self.raw_posts.append(post)
             
             return True
         except Exception as e:
-            logger.error(f"Error updating metadata in MongoDB: {str(e)}")
+            logger.error(f"Error saving post: {str(e)}")
             return False
     
-    def get_posts(self, filters=None, limit=100, sort_by="created_at", sort_order="desc"):
-        """
-        Get posts from MongoDB with optional filtering
+    def save_pain_point(self, pain_point):
+        """Save pain point to database and local cache"""
+        # Fix the comparison with None instead of bool testing
+        if self.db is None:
+            logger.error("Cannot save pain point: Database connection not established")
+            return False
         
-        Args:
-            filters (dict): MongoDB query filters
-            limit (int): Maximum number of posts to return
-            sort_by (str): Field to sort by
-            sort_order (str): Sort order ('asc' or 'desc')
-            
-        Returns:
-            list: List of posts
-        """
         try:
-            # Build the query
-            query = {} if filters is None else filters
+            # Convert pain point object to dictionary if needed
+            pain_data = pain_point.to_dict() if hasattr(pain_point, 'to_dict') else pain_point
             
-            # Determine sort direction
-            sort_direction = -1 if sort_order.lower() == "desc" else 1
+            # Add timestamp if not present
+            if 'created_at' not in pain_data:
+                pain_data['created_at'] = datetime.utcnow()
             
-            # Execute the query
-            cursor = self.db.posts.find(
-                query, 
-                {'_id': 0}  # Exclude MongoDB _id
-            ).sort(sort_by, sort_direction).limit(limit)
+            # Use custom ID or generate one
+            pain_id = pain_data.get('id', str(hash(f"{pain_data['product']}_{pain_data['topic']}")))
+            pain_data['_id'] = pain_id
             
-            # Convert cursor to list
-            posts = list(cursor)
+            # Update local cache
+            self.pain_points[pain_id] = pain_point
             
-            return posts
-        except Exception as e:
-            logger.error(f"Error retrieving posts from MongoDB: {str(e)}")
-            return []
-    
-    def get_pain_points(self, filters=None, limit=100, min_severity=0):
-        """
-        Get pain points from MongoDB with optional filtering
-        
-        Args:
-            filters (dict): MongoDB query filters
-            limit (int): Maximum number of pain points to return
-            min_severity (float): Minimum severity score
-            
-        Returns:
-            list: List of pain points
-        """
-        try:
-            # Build the query
-            query = {} if filters is None else filters
-            
-            # Add severity filter if provided
-            if min_severity > 0:
-                query["severity"] = {"$gte": min_severity}
-            
-            # Execute the query
-            cursor = self.db.pain_points.find(
-                query, 
-                {'_id': 0}  # Exclude MongoDB _id
-            ).sort("severity", -1).limit(limit)
-            
-            # Convert cursor to list
-            pain_points = list(cursor)
-            
-            return pain_points
-        except Exception as e:
-            logger.error(f"Error retrieving pain points from MongoDB: {str(e)}")
-            return []
-    
-    def get_openai_analyses(self, product=None):
-        """
-        Get OpenAI analyses from MongoDB
-        
-        Args:
-            product (str): Specific product to get analysis for
-            
-        Returns:
-            list: List of analyses
-        """
-        try:
-            # Build the query
-            query = {}
-            if product:
-                query["product"] = product
-            
-            # Execute the query
-            cursor = self.db.openai_analyses.find(
-                query, 
-                {'_id': 0}  # Exclude MongoDB _id
+            # Insert or update in database
+            result = self.db.pain_points.update_one(
+                {"_id": pain_id},
+                {"$set": pain_data},
+                upsert=True
             )
             
-            # Convert cursor to list
-            analyses = list(cursor)
-            
-            return analyses
+            return True
         except Exception as e:
-            logger.error(f"Error retrieving OpenAI analyses from MongoDB: {str(e)}")
-            return []
+            logger.error(f"Error saving pain point: {str(e)}")
+            return False
     
-    def get_recommendations(self, product=None):
-        """
-        Get recommendations from MongoDB
+    def save_openai_analysis(self, product, analysis):
+        """Save OpenAI analysis to database"""
+        # Fix the comparison with None instead of bool testing
+        if self.db is None:
+            logger.error("Cannot save OpenAI analysis: Database connection not established")
+            return False
         
-        Args:
-            product (str): Specific product to get recommendations for
-            
-        Returns:
-            list: List of recommendations
-        """
         try:
-            # Build the query
-            query = {}
-            if product:
-                query["product"] = product
-            
-            # Execute the query
-            cursor = self.db.recommendations.find(
-                query, 
-                {'_id': 0}  # Exclude MongoDB _id
-            )
-            
-            # Convert cursor to list
-            recommendations = list(cursor)
-            
-            return recommendations
-        except Exception as e:
-            logger.error(f"Error retrieving recommendations from MongoDB: {str(e)}")
-            return []
-    
-    def get_stats(self):
-        """
-        Get statistics about the data in MongoDB
-        
-        Returns:
-            dict: Statistics about the data
-        """
-        try:
-            # Get counts
-            post_count = self.db.posts.count_documents({})
-            pain_point_count = self.db.pain_points.count_documents({})
-            analysis_count = self.db.openai_analyses.count_documents({})
-            
-            # Get metadata
-            metadata = self.db.metadata.find_one({"key": "last_scrape"})
-            
-            # Get unique subreddits
-            subreddits = self.db.posts.distinct("subreddit")
-            
-            return {
-                "post_count": post_count,
-                "pain_point_count": pain_point_count,
-                "analysis_count": analysis_count,
-                "last_scrape_time": self.last_scrape_time,
-                "scrape_in_progress": self.scrape_in_progress,
-                "subreddits": subreddits,
-                "metadata": metadata
+            # Prepare analysis document
+            analysis_data = {
+                "product": product,
+                "analysis": analysis,
+                "created_at": datetime.utcnow()
             }
+            
+            # Use product name as ID
+            analysis_data['_id'] = product
+            
+            # Insert or update analysis
+            result = self.db.openai_analysis.update_one(
+                {"_id": product},
+                {"$set": analysis_data},
+                upsert=True
+            )
+            
+            # Update local cache
+            self.openai_analyses[product] = analysis
+            
+            return True
         except Exception as e:
-            logger.error(f"Error retrieving stats from MongoDB: {str(e)}")
-            return {}
+            logger.error(f"Error saving OpenAI analysis: {str(e)}")
+            return False
+    
+    def load_pain_points(self):
+        """Load pain points from database to local cache"""
+        # Fix the comparison with None instead of bool testing
+        if self.db is None:
+            logger.error("Cannot load pain points: Database connection not established")
+            return
+        
+        try:
+            # Clear current cache
+            self.pain_points = {}
+            
+            # Query all pain points from database
+            pain_points_cursor = self.db.pain_points.find({})
+            
+            # Rebuild cache
+            for pain_point in pain_points_cursor:
+                pain_id = pain_point['_id']
+                self.pain_points[pain_id] = pain_point
+                
+            logger.info(f"Loaded {len(self.pain_points)} pain points from database")
+        except Exception as e:
+            logger.error(f"Error loading pain points: {str(e)}")
+    
+    def close(self):
+        """Close MongoDB connection"""
+        if self.client:
+            self.client.close()
+            logger.info("Closed MongoDB connection")

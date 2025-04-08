@@ -4,6 +4,10 @@ from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api
 import nltk
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Safe download if not already available
 try:
@@ -25,24 +29,11 @@ CORS(app)
 # Initialize Flask-RESTful API
 api = Api(app)
 
-# Initialize in-memory data store
-# This will hold our scraped and analyzed data
-class DataStore:
-    def __init__(self):
-        self.raw_posts = []
-        self.analyzed_posts = []
-        self.pain_points = {}
-        self.subreddits_scraped = set()
-        self.last_scrape_time = None
-        self.scrape_in_progress = False
-        self.openai_analyses = {}
-        # self.update_metadata = update_metadata()
+# Import and initialize MongoDB store
+from mongodb_store import MongoDBStore
 
-# Add this to your existing DataStore class (likely in data_store.py)
-
-
-# Create a singleton instance of DataStore
-data_store = DataStore()
+# Create a MongoDB store instance
+data_store = MongoDBStore(os.getenv("MONGODB_URI"))
 
 # Import routes after app initialization to avoid circular imports
 from api import initialize_routes

@@ -6,22 +6,17 @@ from flask_restful import Resource
 from datetime import datetime
 from threading import Thread
 from dotenv import load_dotenv
-
+# Import data_store from app
 from app import data_store
 from reddit_scraper import RedditScraper
 from nlp_analyzer import NLPAnalyzer
 from openai_analyzer import OpenAIAnalyzer
-
-from mongodb_store import MongoDBStore
-
 logger = logging.getLogger(__name__)
-
 # Initialize scraper and analyzers
 scraper = RedditScraper()
 analyzer = NLPAnalyzer()
 openai_analyzer = OpenAIAnalyzer()
-# In api_resources.py
-
+# In api_resources.py - no need to create a new MongoDB store here since we're using the one from app.py
 mongodb_uri = os.getenv("MONGODB_URI")
 
 class ScrapePosts(Resource):
@@ -79,15 +74,14 @@ class ScrapePosts(Resource):
         if time_filter not in scraper.time_filters.keys():
             return {"status": "error", "message": f"Invalid time_filter. Must be one of: {', '.join(scraper.time_filters.keys())}"}, 400
         
-        # # Update metadata in MongoDB
-        # data_store.update_metadata(
-        #     scrape_in_progress=True,
-        #     products=products,
-        #     subreddits=subreddits if subreddits else scraper.default_subreddits,
-        #     time_filter=time_filter
-        # )
         
-        # Start scraping in a background thread
+        # Update metadata in MongoDB -- need added
+        data_store.update_metadata(
+            scrape_in_progress=True,
+            products=products,
+            subreddits=subreddits if subreddits else scraper.default_subreddits,
+            time_filter=time_filter
+        )
         def background_scrape():
             try:
                 # Scrape posts
@@ -109,21 +103,22 @@ class ScrapePosts(Resource):
                 # Analyze posts with NLP
                 analyzer.analyze_posts(all_posts, products)
                 
-                # # Save posts to MongoDB
-                # for post in all_posts:
-                #     # Set products for this post
-                #     post.products = analyzer.get_product_from_post(post, products)
-                #     # Save to MongoDB
-                #     data_store.save_post(post)
+                # Save posts to MongoDB - UNCOMMENTED AND FIXED
+                for post in all_posts:
+                    # Set products for this post
+                    post.products = analyzer.get_product_from_post(post, products)
+                    # Save to MongoDB
+                    data_store.save_post(post)
                 
-                # logger.info(f"Saved {len(all_posts)} posts to MongoDB")
+                logger.info(f"Saved {len(all_posts)} posts to MongoDB")
                 
-                # # Process pain points
-                # pain_points = analyzer.categorize_pain_points(all_posts, products)
-                # for pain_point in pain_points.values():
-                #     data_store.save_pain_point(pain_point)
+                # Process pain points - UNCOMMENTED AND FIXED
+                pain_points = analyzer.categorize_pain_points(all_posts, products)
+                for product, pain_point_list in pain_points.items():
+                    for pain_point in pain_point_list:
+                        data_store.save_pain_point(pain_point)
                 
-                # logger.info(f"Saved {len(pain_points)} pain points to MongoDB")
+                logger.info(f"Saved pain points to MongoDB")
                 
                 # If OpenAI analysis is requested, analyze common pain points
                 if use_openai and all_posts:
@@ -331,7 +326,6 @@ class GetPainPoints(Resource):
             "pain_points": result,
             "last_updated": data_store.last_scrape_time.isoformat() if data_store.last_scrape_time else None
         }
-
 class GetPosts(Resource):
     """API endpoint to get scraped posts"""
     def get(self):
@@ -369,65 +363,137 @@ class GetPosts(Resource):
         if sort_order not in ['asc', 'desc']:
             return {"status": "error", "message": "Invalid sort_order parameter. Must be 'asc' or 'desc'"}, 400
         
-        # Get all posts
-        posts = data_store.analyzed_posts if data_store.analyzed_posts else data_store.raw_posts
-        print(posts)
-       # Apply filters
-        if product:
-            # Filter posts that mention the specified product
-            posts = [p for p in posts if product in analyzer.get_product_from_post(p, [product])]
-        
-        if has_pain_points:
-            posts = [p for p in posts if hasattr(p, 'pain_points') and p.pain_points]
-            
-        if subreddit:
-            posts = [p for p in posts if p.subreddit.lower() == subreddit.lower()]
-            
-        if min_score > 0:
-            posts = [p for p in posts if p.score >= min_score]
-            
-        if min_comments > 0:
-            posts = [p for p in posts if p.num_comments >= min_comments]
-        
-        # Sort by specified field
-        sort_field = valid_sort_fields[sort_by]
-        
-        # For sentiment sorting, handle posts that don't have sentiment
-        if sort_field == 'sentiment':
-            # Default sentiment to 0 if not available
-            posts.sort(key=lambda x: getattr(x, sort_field, 0) or 0, reverse=(sort_order == 'desc'))
+        # Check if MongoDB is connected
+        if data_store.db is None:
+            logger.error("MongoDB not connected, using in-memory data")
+            # Fallback to in-memory data
+            posts = data_store.analyzed_posts if data_store.analyzed_posts else data_store.raw_posts
         else:
-            posts.sort(key=lambda x: getattr(x, sort_field), reverse=(sort_order == 'desc'))
+            try:
+                # Build MongoDB query
+                query = {}
+                
+                if product:
+                    query["products"] = product
+                
+                if has_pain_points:
+                    query["pain_points"] = {"$exists": True, "$ne": []}
+                    
+                if subreddit:
+                    query["subreddit"] = {"$regex": f"^{subreddit}$", "$options": "i"}
+                    
+                if min_score > 0:
+                    query["score"] = {"$gte": min_score}
+                    
+                if min_comments > 0:
+                    query["num_comments"] = {"$gte": min_comments}
+                
+                # Set up sorting
+                mongo_sort_field = valid_sort_fields[sort_by]
+                mongo_sort_direction = -1 if sort_order == 'desc' else 1
+                
+                # Query MongoDB
+                cursor = data_store.db.posts.find(query).sort(mongo_sort_field, mongo_sort_direction)
+                
+                # Apply limit if specified
+                if limit and limit > 0:
+                    cursor = cursor.limit(limit)
+                
+                # Convert cursor to list
+                posts = list(cursor)
+                logger.info(f"Retrieved {len(posts)} posts from MongoDB")
+                
+            except Exception as e:
+                logger.error(f"Error querying MongoDB: {str(e)}")
+                # Fallback to in-memory data
+                posts = data_store.analyzed_posts if data_store.analyzed_posts else data_store.raw_posts
+                
+                # Apply filters
+                if product:
+                    # Filter posts that mention the specified product
+                    posts = [p for p in posts if hasattr(p, 'products') and product in p.products]
+                
+                if has_pain_points:
+                    posts = [p for p in posts if hasattr(p, 'pain_points') and p.pain_points]
+                    
+                if subreddit:
+                    posts = [p for p in posts if hasattr(p, 'subreddit') and p.subreddit.lower() == subreddit.lower()]
+                    
+                if min_score > 0:
+                    posts = [p for p in posts if hasattr(p, 'score') and p.score >= min_score]
+                    
+                if min_comments > 0:
+                    posts = [p for p in posts if hasattr(p, 'num_comments') and p.num_comments >= min_comments]
+                
+                # Sort by specified field
+                sort_field = valid_sort_fields[sort_by]
+                
+                # For sentiment sorting, handle posts that don't have sentiment
+                if sort_field == 'sentiment':
+                    # Default sentiment to 0 if not available
+                    posts.sort(key=lambda x: getattr(x, sort_field, 0) or 0, reverse=(sort_order == 'desc'))
+                else:
+                    posts.sort(key=lambda x: getattr(x, sort_field, 0), reverse=(sort_order == 'desc'))
+                
+                # Apply limit
+                if limit and limit > 0:
+                    posts = posts[:limit]
         
-        # Apply limit
-        if limit and limit > 0:
-            posts = posts[:limit]
-        
-        # Convert to dictionaries
+        # Convert to dictionaries for response
         result = []
         for post in posts:
-            post_dict = {
-                "id": post.id,
-                "title": post.title,
-                "author": post.author,
-                "subreddit": post.subreddit,
-                "url": post.url,
-                "created_utc": post.created_utc.isoformat(),
-                "score": post.score,
-                "num_comments": post.num_comments,
-            }
-            
-            # Add analysis results if available
-            if hasattr(post, 'sentiment') and post.sentiment is not None:
-                post_dict["sentiment"] = post.sentiment
-            
-            if hasattr(post, 'topics') and post.topics:
-                post_dict["topics"] = post.topics
+            # Handle both MongoDB documents and custom objects
+            if isinstance(post, dict):
+                post_dict = {
+                    "id": post.get("_id") or post.get("id"),
+                    "title": post.get("title"),
+                    "author": post.get("author"),
+                    "subreddit": post.get("subreddit"),
+                    "url": post.get("url"),
+                    "created_utc": post.get("created_utc"),
+                    "score": post.get("score"),
+                    "num_comments": post.get("num_comments"),
+                    "sentiment": post.get("sentiment"),
+                    "topics": post.get("topics", []),
+                    "pain_points": post.get("pain_points", []),
+                    "products": post.get("products", [])
+                }
+            else:
+                # Handle custom objects
+                post_dict = {
+                    "id": getattr(post, "id", None),
+                    "title": getattr(post, "title", None),
+                    "author": getattr(post, "author", None),
+                    "subreddit": getattr(post, "subreddit", None),
+                    "url": getattr(post, "url", None),
+                    "created_utc": getattr(post, "created_utc", None),
+                    "score": getattr(post, "score", None),
+                    "num_comments": getattr(post, "num_comments", None),
+                }
                 
-            if hasattr(post, 'pain_points') and post.pain_points:
-                post_dict["pain_points"] = post.pain_points
+                # Add analysis results if available
+                if hasattr(post, 'sentiment') and post.sentiment is not None:
+                    post_dict["sentiment"] = post.sentiment
+                
+                if hasattr(post, 'topics') and post.topics:
+                    post_dict["topics"] = post.topics
+                    
+                if hasattr(post, 'pain_points') and post.pain_points:
+                    post_dict["pain_points"] = post.pain_points
+                
+                if hasattr(post, 'products') and post.products:
+                    post_dict["products"] = post.products
+            
+            # Convert datetime objects to ISO format strings
+            if isinstance(post_dict["created_utc"], datetime):
+                post_dict["created_utc"] = post_dict["created_utc"].isoformat()
                 
             result.append(post_dict)
+        
+        # Get last_updated timestamp
+        last_updated = None
+        if data_store.last_scrape_time:
+            last_updated = data_store.last_scrape_time.isoformat() if isinstance(data_store.last_scrape_time, datetime) else data_store.last_scrape_time
         
         return {
             "status": "success",
@@ -444,7 +510,8 @@ class GetPosts(Resource):
                 "field": sort_by,
                 "order": sort_order
             },
-            "last_updated": data_store.last_scrape_time.isoformat() if data_store.last_scrape_time else None
+            "last_updated": last_updated,
+            "data_source": "mongodb" if data_store.db is not None else "memory"
         }
 
 class GetStatus(Resource):
@@ -515,7 +582,7 @@ class GetOpenAIAnalysis(Resource):
         # Get query parameters
         product = request.args.get('product')
         products_param = request.args.getlist('products[]')
-        print("🚀 ~ requested_products:", products_param)
+        logger.info(f"Requested products: {products_param}")
         
         # Get API key from query params or headers
         api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
@@ -531,50 +598,129 @@ class GetOpenAIAnalysis(Resource):
                 "openai_enabled": False
             }, 400
         
-        if not data_store.openai_analyses:
-            return {
-                "status": "info",
-                "message": "No OpenAI analyses available. Use the scrape endpoint with use_openai=true to generate analysis.",
-                "openai_enabled": True,
-                "analyses": []
-            }
+        # Check if MongoDB is connected
+        if data_store.db is None:
+            # Fallback to in-memory data
+            if not data_store.openai_analyses:
+                return {
+                    "status": "info",
+                    "message": "No OpenAI analyses available. Use the scrape endpoint with use_openai=true to generate analysis.",
+                    "openai_enabled": True,
+                    "analyses": []
+                }
+                
+            # Parse multiple products from in-memory data
+            matched_analyses = []
+            if len(products_param) > 0:
+                requested_products = [p.strip().lower() for p in products_param if p.strip()]
+                for prod in requested_products:
+                    for key in data_store.openai_analyses:
+                        if key.lower() == prod.lower():
+                            matched_analyses.append(data_store.openai_analyses[key])
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "analyses": matched_analyses
+                }
 
-        # Parse multiple products
-        matched_analyses = []
-        if len(products_param) > 0:
-            requested_products = [p.strip().lower() for p in products_param if p.strip()]
-            print("🚀 ~ requested_products:", requested_products)
-            for prod in requested_products:
+            # Single product (legacy support) from in-memory data
+            if product:
                 for key in data_store.openai_analyses:
-                    if key.lower() == prod:
-                        matched_analyses.append(data_store.openai_analyses[key])
+                    if key.lower() == product.lower():
+                        return {
+                            "status": "success",
+                            "openai_enabled": True,
+                            "analyses": [data_store.openai_analyses[key]]
+                        }
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "analyses": []
+                }
+
+            # Return all analyses from in-memory data if no filters are applied
             return {
                 "status": "success",
                 "openai_enabled": True,
-                "analyses": matched_analyses
+                "analyses": list(data_store.openai_analyses.values())
             }
-
-        # Single product (legacy support)
-        if product:
-            for key in data_store.openai_analyses:
-                if key.lower() == product.lower():
+        
+        # Using MongoDB for data retrieval
+        try:
+            # Parse multiple products from MongoDB
+            if len(products_param) > 0:
+                requested_products = [p.strip().lower() for p in products_param if p.strip()]
+                matched_analyses = []
+                
+                # Use MongoDB's $in operator to find matching products in one query
+                query = {"_id": {"$in": requested_products}}
+                cursor = data_store.db.openai_analysis.find(query)
+                
+                for doc in cursor:
+                    # Transform to the expected response format
+                    if "analysis" in doc:
+                        matched_analyses.append(doc["analysis"])
+                    else:
+                        matched_analyses.append(doc)  # Include the entire document if no analysis field
+                
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "analyses": matched_analyses
+                }
+            
+            # Single product (legacy support) from MongoDB
+            if product:
+                product_lower = product.lower()
+                doc = data_store.db.openai_analysis.find_one({"_id": product_lower})
+                
+                if doc:
+                    # Return the analysis field if it exists
+                    if "analysis" in doc:
+                        return {
+                            "status": "success",
+                            "openai_enabled": True,
+                            "analyses": [doc["analysis"]]
+                        }
+                    # Otherwise return the whole document
                     return {
                         "status": "success",
                         "openai_enabled": True,
-                        "analyses": [data_store.openai_analyses[key]]
+                        "analyses": [doc]
                     }
+                
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "analyses": []
+                }
+            
+            # Return all analyses from MongoDB if no filters are applied
+            all_analyses = []
+            cursor = data_store.db.openai_analysis.find({})
+            
+            for doc in cursor:
+                if "analysis" in doc:
+                    all_analyses.append(doc["analysis"])
+                else:
+                    all_analyses.append(doc)
+            
             return {
                 "status": "success",
                 "openai_enabled": True,
-                "analyses": []
+                "analyses": all_analyses
             }
-
-        # Return all analyses if no filters are applied
-        return {
-            "status": "success",
-            "openai_enabled": True,
-            "analyses": list(data_store.openai_analyses.values())
-        }
+            
+        except Exception as e:
+            logger.error(f"Error retrieving OpenAI analyses from MongoDB: {str(e)}")
+            
+            # Fallback to in-memory data if MongoDB query fails
+            return {
+                "status": "error",
+                "message": f"Database error: {str(e)}",
+                "openai_enabled": True,
+                "analyses": list(data_store.openai_analyses.values())
+            }
 
     
 
