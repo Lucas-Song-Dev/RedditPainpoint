@@ -321,16 +321,16 @@ class ScrapePosts(Resource):
                 # Analyze posts with NLP
                 analyzer.analyze_posts(all_posts, products)
                 
-                # Save posts to MongoDB - UNCOMMENTED AND FIXED
                 for post in all_posts:
+                    # Debug what products are detected
+                    detected_products = analyzer.get_product_from_post(post, products)
                     # Set products for this post
-                    post.products = analyzer.get_product_from_post(post, products)
+                    post.products = detected_products
                     # Save to MongoDB
                     data_store.save_post(post)
                 
                 logger.info(f"Saved {len(all_posts)} posts to MongoDB")
                 
-                # Process pain points - UNCOMMENTED AND FIXED
                 pain_points = analyzer.categorize_pain_points(all_posts, products)
                 for product, pain_point_list in pain_points.items():
                     for pain_point in pain_point_list:
@@ -345,13 +345,18 @@ class ScrapePosts(Resource):
                     # Group posts by product
                     posts_by_product = {}
                     for post in all_posts:
+                        print(post)
                         matching_products = post.products
+                        print(matching_products)
                         # A post can now match multiple products
                         for product in matching_products:
+                            print(product)
                             if product not in posts_by_product:
                                 posts_by_product[product] = []
                             posts_by_product[product].append(post)
-                    
+                    print("dipqwjoqijwdq")
+                    print(posts_by_product)
+                    print(all_posts)
                     # Analyze each product's posts
                     for product, product_posts in posts_by_product.items():
                         if len(product_posts) > 0:

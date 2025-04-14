@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from openai import OpenAI
 from datetime import datetime
 
@@ -10,16 +11,26 @@ class OpenAIAnalyzer:
     Uses OpenAI's API to analyze Reddit posts and identify common pain points.
     """
     
-    def __init__(self):
-        """Initialize the OpenAI analyzer without the client"""
+    def __init__(self, api_key=None):
+        """
+        Initialize the OpenAI analyzer
+        
+        Args:
+            api_key (str, optional): OpenAI API key. If not provided, will try to get from environment.
+        """
+        # Try to get API key from parameter, then from environment variable
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.client = None
-        self.api_key = None
-        logger.warning("OpenAI client not initialized. API key must be provided with each request.")
-            
-        # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-        # do not change this unless explicitly requested by the user
+        
+        # Do not change this unless explicitly requested by the user
         self.model = "gpt-4o-mini"
         
+        # Initialize client if API key is available
+        if self.api_key:
+            self.initialize_client(self.api_key)
+        else:
+            logger.warning("OpenAI API key not found. API key must be provided with each request.")
+            
     def initialize_client(self, api_key):
         """
         Initialize the OpenAI client with the provided API key
@@ -37,6 +48,7 @@ class OpenAIAnalyzer:
         try:
             self.client = OpenAI(api_key=api_key)
             self.api_key = api_key
+            logger.info("OpenAI client initialized successfully")
             return True
         except Exception as e:
             logger.error(f"Error initializing OpenAI client: {str(e)}")
@@ -53,6 +65,10 @@ class OpenAIAnalyzer:
         Returns:
             dict: Common pain points analysis
         """
+        # Try to initialize client if it's not already initialized
+        if not self.client and self.api_key:
+            self.initialize_client(self.api_key)
+            
         if not self.api_key or not self.client:
             logger.error("OpenAI API key not configured. Cannot analyze common pain points.")
             return {
@@ -146,6 +162,10 @@ class OpenAIAnalyzer:
         Returns:
             dict: Recommendations for product improvements
         """
+        # Try to initialize client if it's not already initialized
+        if not self.client and self.api_key:
+            self.initialize_client(self.api_key)
+            
         if not self.api_key or not self.client:
             logger.error("OpenAI API key not configured. Cannot generate recommendations.")
             return {

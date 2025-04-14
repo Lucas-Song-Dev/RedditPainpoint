@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
-import { triggerScrape } from "@/api/api.js";
+import { triggerScrape, fetchStatus } from "@/api/api.js";
+import { useNotification } from "@/context/NotificationContext";
 import "./ScrapePage.scss";
 
 const ScrapePage = () => {
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState(null);
+  const [scrapeInProgress, setScrapeInProgress] = useState(false);
+  const { showNotification } = useNotification();
+  const [customSubreddit, setCustomSubreddit] = useState("");
+  const [customProduct, setCustomProduct] = useState("");
 
   // Initialize form data from localStorage or use defaults
   const [formData, setFormData] = useState(() => {
@@ -27,8 +31,31 @@ const ScrapePage = () => {
     };
   });
 
-  const [customSubreddit, setCustomSubreddit] = useState("");
-  const [customProduct, setCustomProduct] = useState("");
+  // Periodically check scrape status
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const status = await fetchStatus();
+        setScrapeInProgress(status.scrape_in_progress);
+
+        // If scrape was in progress but now completed, show notification
+        if (scrapeInProgress && !status.scrape_in_progress) {
+          showNotification("Scraping job completed!", "success");
+          setScrapeInProgress(false);
+        }
+      } catch (err) {
+        console.error("Error fetching status:", err);
+      }
+    };
+
+    // Check immediately
+    checkStatus();
+
+    // Then set up interval
+    const intervalId = setInterval(checkStatus, 10000); // Check every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [scrapeInProgress, showNotification]);
 
   // Save form data to localStorage whenever it changes
   useEffect(() => {
@@ -91,7 +118,20 @@ const ScrapePage = () => {
         time_filter: formData.time_filter,
         use_openai: formData.use_openai,
       });
-      setResponse(data);
+      setScrapeInProgress(true);
+
+      // Create a formatted message for the notification
+      const notificationMessage = `
+        Scraping job started successfully!
+        
+        Products: ${data.products.join(", ")}
+        Subreddits: ${data.subreddits.join(", ")}
+        Limit: ${data.limit}
+        Time filter: ${data.time_filter}
+        Using OpenAI: ${data.use_openai ? "Yes" : "No"}
+      `;
+
+      showNotification(notificationMessage, "info");
     } catch (err) {
       console.error(err);
     } finally {
@@ -233,14 +273,18 @@ const ScrapePage = () => {
           onClick={handleScrape}
           disabled={
             loading ||
+            scrapeInProgress ||
             formData.subreddits.length === 0 ||
             formData.products.length === 0
           }
           className="scrape-button"
         >
-          {loading ? "Scraping..." : "Start Scraping Reddit Posts"}
+          {loading
+            ? "Starting..."
+            : scrapeInProgress
+            ? "Scraping in Progress..."
+            : "Start Scraping Reddit Posts"}
         </button>
-
         <button
           onClick={handleReset}
           className="reset-button"
@@ -249,15 +293,6 @@ const ScrapePage = () => {
           Reset to Defaults
         </button>
       </div>
-
-      {response && (
-        <div className="results-container">
-          <h2 className="results-title">Results</h2>
-          <pre className="results-content">
-            {JSON.stringify(response, null, 2)}
-          </pre>
-        </div>
-      )}
     </div>
   );
 };

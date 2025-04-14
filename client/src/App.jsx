@@ -11,6 +11,7 @@ import StatusBar from "./components/StatusBar";
 import LoginPage from "./pages/auth/LoginPage";
 import { useAuth } from "./context/AuthContext";
 import { logoutUser } from "./api/api";
+import Notification from "./components/Notification";
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -124,6 +125,7 @@ function App() {
       <div className="main-content">
         <StatusBar />
         {renderContent()}
+        <Notification />
       </div>
     </div>
   );

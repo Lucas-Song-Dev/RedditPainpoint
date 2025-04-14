@@ -124,7 +124,7 @@ class NLPAnalyzer:
         Returns:
             list: List of matching product names or empty list if none match
         """
-        title = f"{post.title}".lower()
+        title = f"{post.title} {post.content}".lower()
         matching_products = []
 
         for p in products:
