@@ -1,0 +1,1 @@
+static: serve -s dist -l 5000
