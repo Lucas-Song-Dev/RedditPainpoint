@@ -46,7 +46,6 @@ const Recommendations = () => {
       const data = await fetchRecommendations({
         product: products,
         min_severity: minSeverity,
-        openai_api_key: import.meta.env.VITE_OPENAI_API_KEY,
       });
 
       setRecommendations(data.recommendations || []);

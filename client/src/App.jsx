@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.scss";
@@ -7,10 +7,34 @@ import Scrape from "./pages/scrape/ScrapePage";
 import AnalysisPage from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrape/ScrapePage";
 import RecomendationPage from "./pages/recomendationPage/Recomendation";
-import StatusBar from "./components/StatusBar"; // Import the StatusBar component
+import StatusBar from "./components/StatusBar";
+import LoginPage from "./pages/auth/LoginPage";
+import { useAuth } from "./context/AuthContext";
+import { logoutUser } from "./api/api";
 
 function App() {
   const [activePage, setActivePage] = useState("home");
+  const { isAuthenticated, isLoading, login, logout } = useAuth();
+
+  // Handle logout click
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      logout(); // Update auth context
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  // If auth is still loading, you can show a loading spinner
+  if (isLoading) {
+    return <div className="loading-container">Loading...</div>;
+  }
+
+  // If not authenticated, show login page
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={login} />;
+  }
 
   // Define the content to render based on active page
   const renderContent = () => {
@@ -87,6 +111,10 @@ function App() {
               onClick={() => setActivePage("recomendationPage")}
             >
               Recomendation
+            </li>
+            {/* Logout button at the bottom of sidebar */}
+            <li className="logout-item" onClick={handleLogout}>
+              Logout
             </li>
           </ul>
         </nav>

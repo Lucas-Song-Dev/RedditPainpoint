@@ -110,3 +110,34 @@
     }
   }
 }
+
+/* Add this to your App.scss file */
+.nav-menu {
+  ul {
+    /* Existing styles */
+
+    .logout-item {
+      margin-top: auto;  /* Push to bottom */
+      background-color: #f8f9fa;
+      color: #dc3545;
+      cursor: pointer;
+      padding: 10px 15px;
+      border-radius: 4px;
+      margin-top: 20px;
+      
+      &:hover {
+        background-color: #f1f2f3;
+        color: #bd2130;
+      }
+    }
+  }
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+  color: #555;
+}

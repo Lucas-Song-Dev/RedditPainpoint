@@ -1,17 +1,33 @@
 import logging
 import json
 import os
-from flask import jsonify, request, Blueprint, current_app
+from flask import jsonify, request, Blueprint, current_app, make_response
 from flask_restful import Resource
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Thread
+
 from dotenv import load_dotenv
+from functools import wraps
+import jwt
+import bcrypt
+
 # Import data_store from app
 from app import data_store
 from reddit_scraper import RedditScraper
 from nlp_analyzer import NLPAnalyzer
 from openai_analyzer import OpenAIAnalyzer
+load_dotenv()
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+# Get API credentials from environment variables
+REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", 3600))  # 1 hour default
+
+
 # Initialize scraper and analyzers
 scraper = RedditScraper()
 analyzer = NLPAnalyzer()
@@ -19,16 +35,223 @@ openai_analyzer = OpenAIAnalyzer()
 # In api_resources.py - no need to create a new MongoDB store here since we're using the one from app.py
 mongodb_uri = os.getenv("MONGODB_URI")
 
+# Initialize Reddit and OpenAI clients if credentials are available
+if REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET:
+    scraper.initialize_client(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET)
+    
+if OPENAI_API_KEY:
+    openai_analyzer.initialize_client(OPENAI_API_KEY)
+
+
+class Register(Resource):
+    """API endpoint for user registration"""
+    def post(self):
+        """
+        Register a new user
+        
+        POST parameters:
+        - username (str): Username
+        - password (str): Password
+        - email (str): Email (optional)
+        
+        Returns:
+            JSON response confirming registration
+        """
+        data = request.get_json() or {}
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        
+        # Validate input
+        if not username or not password:
+            return {"status": "error", "message": "Username and password are required"}, 400
+        
+        # Check if username already exists in MongoDB
+        if data_store.db is not None:
+            # Check if user already exists
+            existing_user = data_store.db.users.find_one({"username": username})
+            if existing_user:
+                return {"status": "error", "message": "Username already exists"}, 409
+            
+            # Hash password using bcrypt
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+            
+            # Create user document
+            user = {
+                "username": username,
+                "password": hashed_password.decode('utf-8'),  # Store as string
+                "email": email,
+                "created_at": datetime.utcnow(),
+                "last_login": None
+            }
+            
+            # Insert into database
+            try:
+                data_store.db.users.insert_one(user)
+                return {"status": "success", "message": "User registered successfully"}, 201
+            except Exception as e:
+                logger.error(f"Error creating user: {str(e)}")
+                return {"status": "error", "message": "Failed to create user"}, 500
+        else:
+            return {"status": "error", "message": "Database not available"}, 500
+
+# JWT Authentication helper
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # Try to get token from cookies first
+        token = request.cookies.get('access_token')
+        print("odjasiodjaosida")
+        print(token)
+        
+        # If not in cookies, check Authorization header
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        if not token:
+            return {"status": "error", "message": "Authentication token is missing"}, 401
+        
+        try:
+            # Decode the token
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
+            current_user = payload
+        except jwt.ExpiredSignatureError:
+            return {"status": "error", "message": "Token has expired"}, 401
+        except jwt.InvalidTokenError:
+            return {"status": "error", "message": "Invalid token"}, 401
+        
+        return f(current_user, *args, **kwargs)
+    
+    return decorated
+class Login(Resource):
+    """API endpoint for user authentication"""
+    def post(self):
+        """
+        Authenticate user and return JWT token
+        
+        POST parameters:
+        - username (str): Username
+        - password (str): Password
+        
+        Returns:
+            JSON response with JWT token
+        """
+        try:
+            data = request.get_json() or {}
+            username = data.get('username')
+            password = data.get('password')
+            
+            # Validate input
+            if not username or not password:
+                return {"status": "error", "message": "Username and password are required"}, 400
+            
+            # Check MongoDB for user authentication
+            if data_store.db is not None:
+                user = data_store.db.users.find_one({"username": username})
+                
+                if user and bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+                    # Update last login time
+                    data_store.db.users.update_one(
+                        {"username": username},
+                        {"$set": {"last_login": datetime.utcnow()}}
+                    )
+                    
+                    # Generate JWT token
+                    token_expiry = datetime.utcnow() + timedelta(seconds=JWT_ACCESS_TOKEN_EXPIRES)
+                    token_payload = {
+                        'username': username,
+                        'exp': token_expiry
+                    }
+                    token = jwt.encode(token_payload, JWT_SECRET_KEY, algorithm="HS256")
+                    
+                    # Create response with token in cookie
+                    response = make_response(jsonify({
+                        "status": "success",
+                        "message": "Authentication successful",
+                        "token": token,
+                        "expires": token_expiry.isoformat()
+                    }))
+                    
+                    # Set secure cookie with token
+                    response.set_cookie(
+                        'access_token', 
+                        token,
+                        httponly=True,
+                        secure=request.is_secure,  # True in production with HTTPS
+                        samesite='Lax',  # Changed from 'Strict' to 'Lax' for better compatibility
+                        max_age=JWT_ACCESS_TOKEN_EXPIRES
+                    )
+                    
+                    return response
+                else:
+                    return {"status": "error", "message": "Invalid credentials"}, 401
+            else:
+                # Fallback to environment variable check if database not available
+                if username == os.getenv("ADMIN_USERNAME", "admin") and password == os.getenv("ADMIN_PASSWORD", "password"):
+                    # Generate JWT token
+                    token_expiry = datetime.utcnow() + timedelta(seconds=JWT_ACCESS_TOKEN_EXPIRES)
+                    token_payload = {
+                        'username': username,
+                        'exp': token_expiry
+                    }
+                    token = jwt.encode(token_payload, JWT_SECRET_KEY, algorithm="HS256")
+                    
+                    # Create response with token in cookie
+                    response = make_response(jsonify({
+                        "status": "success",
+                        "message": "Authentication successful",
+                        "token": token,
+                        "expires": token_expiry.isoformat()
+                    }))
+                    
+                    # Set secure cookie with token
+                    response.set_cookie(
+                        'access_token', 
+                        token,
+                        httponly=True,
+                        secure=request.is_secure,  # True in production with HTTPS
+                        samesite='Lax',  # Changed from 'Strict' to 'Lax'
+                        max_age=JWT_ACCESS_TOKEN_EXPIRES
+                    )
+                    
+                    return response
+                else:
+                    return {"status": "error", "message": "Invalid credentials"}, 401
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            return {"status": "error", "message": f"Internal server error: {str(e)}"}, 500
+
+class Logout(Resource):
+    """API endpoint for user logout"""
+    def post(self):
+        """
+        Logout user by clearing JWT cookie
+        
+        Returns:
+            JSON response confirming logout
+        """
+        response = make_response(jsonify({
+            "status": "success",
+            "message": "Logout successful"
+        }))
+        
+        # Clear the auth cookie
+        response.set_cookie('access_token', '', expires=0)
+        
+        return response
 class ScrapePosts(Resource):
     """API endpoint to trigger Reddit scraping"""
-    def post(self):
+    @token_required
+    def post(self, current_user):
         """
         Start a scraping job for Reddit posts
         
         POST parameters:
-        - reddit_client_id (str): Reddit API client ID
-        - reddit_client_secret (str): Reddit API client secret
-        - openai_api_key (str): OpenAI API key (required if use_openai=True)
         - products (list): List of product names to scrape (optional)
         - limit (int): Maximum number of posts to scrape per product (optional)
         - subreddits (list): List of subreddits to search (optional)
@@ -49,26 +272,21 @@ class ScrapePosts(Resource):
         time_filter = data.get('time_filter', 'month')
         use_openai = data.get('use_openai', False)
         
-        # Get authentication credentials
-        reddit_client_id = data.get('reddit_client_id')
-        reddit_client_secret = data.get('reddit_client_secret')
-        openai_api_key = data.get('openai_api_key')
-        
         # Validate Reddit credentials
-        if not reddit_client_id or not reddit_client_secret:
-            return {"status": "error", "message": "Reddit API credentials required"}, 400
+        if not REDDIT_CLIENT_ID or not REDDIT_CLIENT_SECRET:
+            return {"status": "error", "message": "Reddit API credentials not configured on server"}, 500
             
         # Initialize Reddit client
-        if not scraper.initialize_client(reddit_client_id, reddit_client_secret):
-            return {"status": "error", "message": "Failed to initialize Reddit client"}, 400
+        if not scraper.initialize_client(REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET):
+            return {"status": "error", "message": "Failed to initialize Reddit client"}, 500
             
         # Initialize OpenAI client if needed
         if use_openai:
-            if not openai_api_key:
-                return {"status": "error", "message": "OpenAI API key required when use_openai=True"}, 400
+            if not OPENAI_API_KEY:
+                return {"status": "error", "message": "OpenAI API key not configured on server"}, 500
                 
-            if not openai_analyzer.initialize_client(openai_api_key):
-                return {"status": "error", "message": "Failed to initialize OpenAI client"}, 400
+            if not openai_analyzer.initialize_client(OPENAI_API_KEY):
+                return {"status": "error", "message": "Failed to initialize OpenAI client"}, 500
         
         # Validate time filter
         if time_filter not in scraper.time_filters.keys():
@@ -166,11 +384,10 @@ class ScrapePosts(Resource):
             "time_filter": time_filter,
             "use_openai": use_openai
         }
-
-
 class GetRecommendations(Resource):
     """API endpoint to get product recommendations based on pain points"""
-    def get(self):
+    @token_required
+    def get(self, current_user):
         """
         Get generated recommendations for addressing pain points
         
@@ -178,7 +395,6 @@ class GetRecommendations(Resource):
         - product (str): Single product name (optional, for backward compatibility)
         - products (str): Comma-separated list of product names (optional)
         - min_severity (float): Minimum severity of pain points to consider (optional)
-        - openai_api_key (str): OpenAI API key (optional, can be provided in header instead)
         
         Returns:
             JSON response with recommendations data
@@ -188,19 +404,21 @@ class GetRecommendations(Resource):
         products_param = request.args.get('products')
         min_severity = request.args.get('min_severity', type=float, default=0)
         
-        # Get API key from query params or headers
-        api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
-        
-        # Initialize OpenAI if API key provided
-        if api_key and not openai_analyzer.api_key:
-            openai_analyzer.initialize_client(api_key)
-        
-        if not openai_analyzer.api_key:
+        # Ensure OpenAI is initialized
+        if not OPENAI_API_KEY:
             return {
                 "status": "error",
-                "message": "OpenAI API key required. Provide it as a query parameter or in the X-OpenAI-API-Key header.",
+                "message": "OpenAI API key not configured on server",
                 "openai_enabled": False
-            }, 400
+            }, 500
+            
+        if not openai_analyzer.api_key:
+            if not openai_analyzer.initialize_client(OPENAI_API_KEY):
+                return {
+                    "status": "error",
+                    "message": "Failed to initialize OpenAI client",
+                    "openai_enabled": False
+                }, 500
         
         # Get all pain points from data store
         pain_points_dict = data_store.pain_points
@@ -281,9 +499,11 @@ class GetRecommendations(Resource):
             "openai_enabled": True,
             "recommendations": all_recommendations
         }
+    
 class GetPainPoints(Resource):
     """API endpoint to get analyzed pain points"""
-    def get(self):
+    @token_required
+    def get(self, current_user):
         """
         Get all identified pain points
         
@@ -328,7 +548,8 @@ class GetPainPoints(Resource):
         }
 class GetPosts(Resource):
     """API endpoint to get scraped posts"""
-    def get(self):
+    @token_required
+    def get(self, current_user):
         """
         Get all scraped posts
         
@@ -513,41 +734,19 @@ class GetPosts(Resource):
             "last_updated": last_updated,
             "data_source": "mongodb" if data_store.db is not None else "memory"
         }
-
 class GetStatus(Resource):
     """API endpoint to get current scraper status"""
-    def get(self):
+    @token_required
+    def get(self, current_user):
         """
         Get current status of the scraper
-        
-        GET parameters:
-        - reddit_client_id (str): Reddit API client ID (optional, for testing connection)
-        - reddit_client_secret (str): Reddit API client secret (optional, for testing connection)
-        - openai_api_key (str): OpenAI API key (optional, for testing connection)
         
         Returns:
             JSON response with status information
         """
-        # Get API keys from query params or headers for testing
-        reddit_client_id = request.args.get('reddit_client_id') or request.headers.get('X-Reddit-Client-ID')
-        reddit_client_secret = request.args.get('reddit_client_secret') or request.headers.get('X-Reddit-Client-Secret')
-        openai_api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
-        
-        # Test connections if credentials provided
-        reddit_status = "not_configured"
-        openai_status = "not_configured"
-        
-        if reddit_client_id and reddit_client_secret:
-            if scraper.initialize_client(reddit_client_id, reddit_client_secret):
-                reddit_status = "connected"
-            else:
-                reddit_status = "error"
-                
-        if openai_api_key:
-            if openai_analyzer.initialize_client(openai_api_key):
-                openai_status = "connected"
-            else:
-                openai_status = "error"
+        # Get connection status from initialized clients
+        reddit_status = "connected" if scraper.reddit else "not_configured"
+        openai_status = "connected" if openai_analyzer.api_key else "not_configured"
                 
         return {
             "status": "success",
@@ -564,17 +763,29 @@ class GetStatus(Resource):
                 "openai": openai_status
             }
         }
+    
+class ResetScrapeStatus(Resource):
+    """API endpoint to reset scraper status"""
+    @token_required
+    def post(self, current_user):
+        """Reset the scrape_in_progress flag"""
+        data_store.scrape_in_progress = False
+        data_store.update_metadata(scrape_in_progress=False)
+        return {
+            "status": "success",
+            "message": "Scrape status reset successfully"
+        }
 
 class GetOpenAIAnalysis(Resource):
     """API endpoint to get OpenAI analysis results"""
-    def get(self):
+    @token_required
+    def get(self, current_user):
         """
         Get the OpenAI analysis of pain points
         
         GET parameters:
         - product (str): Single product name (optional, for backward compatibility)
         - products (str): Comma-separated list of product names (optional)
-        - openai_api_key (str): OpenAI API key (optional, can be provided in header instead)
         
         Returns:
             JSON response with OpenAI analysis data
@@ -584,19 +795,21 @@ class GetOpenAIAnalysis(Resource):
         products_param = request.args.getlist('products[]')
         logger.info(f"Requested products: {products_param}")
         
-        # Get API key from query params or headers
-        api_key = request.args.get('openai_api_key') or request.headers.get('X-OpenAI-API-Key')
-        
-        # Initialize OpenAI if API key provided
-        if api_key and not openai_analyzer.api_key:
-            openai_analyzer.initialize_client(api_key)
-        
-        if not openai_analyzer.api_key:
+        # Ensure OpenAI is initialized with server-side credentials
+        if not OPENAI_API_KEY:
             return {
                 "status": "error",
-                "message": "OpenAI API key required. Provide it as a query parameter or in the X-OpenAI-API-Key header.",
+                "message": "OpenAI API key not configured on server",
                 "openai_enabled": False
-            }, 400
+            }, 500
+            
+        if not openai_analyzer.api_key:
+            if not openai_analyzer.initialize_client(OPENAI_API_KEY):
+                return {
+                    "status": "error",
+                    "message": "Failed to initialize OpenAI client",
+                    "openai_enabled": False
+                }, 500
         
         # Check if MongoDB is connected
         if data_store.db is None:
@@ -722,78 +935,26 @@ class GetOpenAIAnalysis(Resource):
                 "analyses": list(data_store.openai_analyses.values())
             }
 
-    
-
-class UpdateCredentials(Resource):
-    """API endpoint to update API credentials"""
-    def post(self):
-        """
-        Update API credentials
-        
-        POST parameters:
-        - reddit_client_id (str): Reddit API client ID (optional)
-        - reddit_client_secret (str): Reddit API client secret (optional)
-        - openai_api_key (str): OpenAI API key (optional)
-        
-        Returns:
-            JSON response with status of the credential update
-        """
-        # Get parameters from JSON body
-        data = request.get_json() or {}
-        reddit_client_id = data.get('reddit_client_id')
-        reddit_client_secret = data.get('reddit_client_secret')
-        openai_api_key = data.get('openai_api_key')
-        
-        # Update Reddit credentials if provided
-        if reddit_client_id and reddit_client_secret:
-            # Test if the credentials are valid
-            if scraper.initialize_client(reddit_client_id, reddit_client_secret):
-                logger.info("Reddit credentials updated successfully")
-            else:
-                return {
-                    "status": "error",
-                    "message": "Invalid Reddit credentials provided"
-                }, 400
-        
-        # Update OpenAI credentials if provided
-        if openai_api_key:
-            # Test if the credentials are valid
-            if openai_analyzer.initialize_client(openai_api_key):
-                logger.info("OpenAI credentials updated successfully")
-            else:
-                return {
-                    "status": "error",
-                    "message": "Invalid OpenAI API key provided"
-                }, 400
-        
-        # Return success response with API status
-        return {
-            "status": "success",
-            "message": "Credentials updated successfully",
-            "apis": {
-                "reddit": "connected" if scraper.reddit else "not_connected",
-                "openai": "connected" if openai_analyzer.api_key else "not_connected"
-            }
-        }
-
 # Create routes blueprint
 routes_bp = Blueprint('routes', __name__)
-
 @routes_bp.route('/')
 def index():
     """Render the admin dashboard"""
     from flask import render_template
     return render_template('index.html')
-
 def initialize_routes(api):
     """Add all resources to the API"""
+    # Auth endpoints
+    api.add_resource(Login, '/api/login')
+    api.add_resource(Logout, '/api/logout')
+    api.add_resource(Register, '/api/register')  # Add this line
+    
+    # Existing endpoints
     api.add_resource(ScrapePosts, '/api/scrape')
     api.add_resource(GetPainPoints, '/api/pain-points')
     api.add_resource(GetPosts, '/api/posts')
     api.add_resource(GetStatus, '/api/status')
     api.add_resource(GetOpenAIAnalysis, '/api/openai-analysis')
-    api.add_resource(UpdateCredentials, '/api/credentials')
     api.add_resource(GetRecommendations, '/api/recommendations')
-
 # Export the blueprint for registration
 main_bp = routes_bp

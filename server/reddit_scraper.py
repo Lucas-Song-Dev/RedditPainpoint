@@ -163,17 +163,8 @@ class RedditScraper:
     def scrape_all_products(self, limit=100, subreddits=None, time_filter="month", products=None):
         """
         Scrape mentions of all target products or specific products
-        
-        Args:
-            limit (int): Maximum number of posts per product
-            subreddits (list): List of subreddits to search (optional)
-            time_filter (str): Time filter for search ('day', 'week', 'month', 'year', 'all')
-            products (list): List of specific products to scrape (optional)
-            
-        Returns:
-            dict: Dictionary of product name to list of posts
         """
-        data_store.scrape_in_progress = True
+        data_store.scrape_in_progress = True  # Set to True at start
         try:
             result = {}
             # Use provided product list or default target products
@@ -186,10 +177,10 @@ class RedditScraper:
                     subreddits=subreddits, 
                     time_filter=time_filter
                 )
-                print("🚀 ~ result:", result)
-            data_store.scrape_in_progress = False
+                print("🚀 ~ result:", result)  # This print statement could be part of the issue
+            data_store.scrape_in_progress = False  # Only set to False on success
             return result
         except Exception as e:
             logger.error(f"Error during scraping: {str(e)}")
-            data_store.scrape_in_progress = False
+            data_store.scrape_in_progress = False  # Also set to False on exception
             raise

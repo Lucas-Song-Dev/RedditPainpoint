@@ -14,9 +14,7 @@ const StatusBar = () => {
     setError(null);
 
     try {
-      const data = await fetchStatus({
-        openai_api_key: import.meta.env.VITE_OPENAI_API_KEY,
-      });
+      const data = await fetchStatus();
       setStatus(data);
     } catch (err) {
       console.error("Error fetching status:", err);

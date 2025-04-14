@@ -43,7 +43,6 @@ const OpenAIAnalysis = () => {
     try {
       const data = await fetchOpenAIAnalysis({
         product: products, // Send array of products
-        openai_api_key: import.meta.env.VITE_OPENAI_API_KEY,
       });
 
       setAnalysis(data.analyses || []);

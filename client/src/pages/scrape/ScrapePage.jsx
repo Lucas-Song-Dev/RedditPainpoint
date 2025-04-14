@@ -85,9 +85,6 @@ const ScrapePage = () => {
     setLoading(true);
     try {
       const data = await triggerScrape({
-        reddit_client_id: import.meta.env.VITE_REDDIT_CLIENT_ID,
-        reddit_client_secret: import.meta.env.VITE_REDDIT_CLIENT_SECRET,
-        openai_api_key: import.meta.env.VITE_OPENAI_API_KEY,
         products: formData.products,
         limit: parseInt(formData.limit),
         subreddits: formData.subreddits,
@@ -105,8 +102,8 @@ const ScrapePage = () => {
   // Reset to default values
   const handleReset = () => {
     const defaultData = {
-      subreddits: ["webdev", "python"],
-      products: ["cursor", "replit"],
+      subreddits: [],
+      products: [],
       limit: 75,
       time_filter: "week",
       use_openai: true,

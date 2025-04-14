@@ -7,9 +7,6 @@ const DEFAULT_TIME_FILTER = "month";
 /**
  * Trigger a scraping job on Reddit
  * @param {{
- *   reddit_client_id: string,
- *   reddit_client_secret: string,
- *   openai_api_key?: string,
  *   products?: string[],
  *   limit?: number,
  *   subreddits?: string[],
@@ -19,9 +16,6 @@ const DEFAULT_TIME_FILTER = "month";
  */
 export const triggerScrape = async (options) => {
   const {
-    reddit_client_id,
-    reddit_client_secret,
-    openai_api_key,
     products = [],
     limit = DEFAULT_LIMIT,
     subreddits = [],
@@ -30,9 +24,6 @@ export const triggerScrape = async (options) => {
   } = options;
 
   const payload = {
-    reddit_client_id,
-    reddit_client_secret,
-    openai_api_key: use_openai ? openai_api_key : undefined,
     products,
     limit,
     subreddits,
@@ -42,7 +33,9 @@ export const triggerScrape = async (options) => {
 
   // eslint-disable-next-line no-useless-catch
   try {
-    const res = await axios.post(`${API_BASE}/scrape`, payload);
+    const res = await axios.post(`${API_BASE}/scrape`, payload, {
+      withCredentials: true,
+    });
     return res.data;
   } catch (err) {
     throw err;
@@ -59,7 +52,67 @@ export const fetchPosts = async (filters = {}) => {
   try {
     const res = await axios.get(`${API_BASE}/posts`, {
       params: filters,
+      withCredentials: true,
     });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Register a new user
+ * @param {{
+ *   username: string,
+ *   password: string,
+ *   email?: string
+ * }} userData
+ */
+export const registerUser = async (userData) => {
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const res = await axios.post(`${API_BASE}/register`, userData, {
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Login to the application
+ * @param {{
+ *   username: string,
+ *   password: string
+ * }} credentials
+ */
+export const loginUser = async (credentials) => {
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const res = await axios.post(`${API_BASE}/login`, credentials, {
+      withCredentials: true, // Important for cookies to be received
+    });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Logout and clear credentials
+ * @returns {Promise<Object>}
+ */
+export const logoutUser = async () => {
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const res = await axios.post(
+      `${API_BASE}/logout`,
+      {},
+      {
+        withCredentials: true, // Important for cookies to be sent
+      }
+    );
     return res.data;
   } catch (err) {
     throw err;
@@ -70,15 +123,10 @@ export const fetchPosts = async (filters = {}) => {
  * Get recommendations for addressing pain points
  * @param {{
  *   product?: string | string[],
- *   min_severity?: number,
- *   openai_api_key: string
+ *   min_severity?: number
  * }} options
  */
-export const fetchRecommendations = async ({
-  product,
-  min_severity,
-  openai_api_key,
-}) => {
+export const fetchRecommendations = async ({ product, min_severity }) => {
   // eslint-disable-next-line no-useless-catch
   try {
     // Handle array of products
@@ -96,9 +144,7 @@ export const fetchRecommendations = async ({
 
     const res = await axios.get(`${API_BASE}/recommendations`, {
       params: params,
-      headers: {
-        "X-OpenAI-API-Key": openai_api_key,
-      },
+      withCredentials: true,
     });
     return res.data;
   } catch (err) {
@@ -118,6 +164,7 @@ export const fetchPainPoints = async (filters = {}) => {
   try {
     const res = await axios.get(`${API_BASE}/pain-points`, {
       params: filters,
+      withCredentials: true,
     });
     return res.data;
   } catch (err) {
@@ -129,18 +176,15 @@ export const fetchPainPoints = async (filters = {}) => {
  * Get OpenAI-generated analysis of pain points
  * @param {{
  *   products?: string[]
- *   openai_api_key: string
  * }} options
  */
-export const fetchOpenAIAnalysis = async ({ product, openai_api_key }) => {
+export const fetchOpenAIAnalysis = async ({ product }) => {
   console.log("🚀 ~ fetchOpenAIAnalysis ~ product:", product);
   // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/openai-analysis`, {
       params: { products: product },
-      headers: {
-        "X-OpenAI-API-Key": openai_api_key,
-      },
+      withCredentials: true,
     });
     return res.data;
   } catch (err) {
@@ -150,25 +194,12 @@ export const fetchOpenAIAnalysis = async ({ product, openai_api_key }) => {
 
 /**
  * Get scraper/status/connection info
- * @param {{
- *   reddit_client_id?: string,
- *   reddit_client_secret?: string,
- *   openai_api_key?: string
- * }} options
  */
-export const fetchStatus = async ({
-  reddit_client_id,
-  reddit_client_secret,
-  openai_api_key,
-} = {}) => {
+export const fetchStatus = async () => {
   // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/status`, {
-      params: {
-        reddit_client_id,
-        reddit_client_secret,
-        openai_api_key,
-      },
+      withCredentials: true,
     });
     return res.data;
   } catch (err) {

@@ -24,7 +24,9 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
 # Enable CORS
-CORS(app)
+# CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173", "supports_credentials": True}})
+
 
 # Initialize Flask-RESTful API
 api = Api(app)
@@ -34,6 +36,8 @@ from mongodb_store import MongoDBStore
 
 # Create a MongoDB store instance
 data_store = MongoDBStore(os.getenv("MONGODB_URI"))
+data_store.scrape_in_progress = False
+data_store.update_metadata(scrape_in_progress=False)
 
 # Import routes after app initialization to avoid circular imports
 from api import initialize_routes
