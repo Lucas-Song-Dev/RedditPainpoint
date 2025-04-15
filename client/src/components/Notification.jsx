@@ -1,6 +1,6 @@
 // src/components/Notification.jsx
 import { useNotification } from "../context/NotificationContext";
-import "./Notification.scss";
+import "./notification.scss";
 
 const Notification = () => {
   const { notification, hideNotification } = useNotification();
