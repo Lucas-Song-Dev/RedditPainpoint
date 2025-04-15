@@ -132,3 +132,39 @@ GET /api/openai-analysis: Get OpenAI-generated analysis of pain points
 GET /api/recommendations: Get saved recommendations for addressing pain points
 POST /api/recommendations: Generate new recommendations based on pain points
 ```
+
+## Frontend Setup
+
+### Development Mode
+
+1. Navigate to the client directory:
+
+cd client
+
+2. Install dependencies:
+   npm install
+
+3. Create a `.env` file in the client directory with your backend API URL:
+   VITE_API_BASE_URL=http://localhost:5000/api
+
+4. Start the development server:
+   npm run dev
+
+This will start the development server, typically at http://localhost:5173
+
+### Production Build
+
+1. Build the frontend application:
+   npm run build
+
+This creates a production-ready build in the `dist` directory. 2. You can test the production build locally using:
+npm run preview
+
+### Deployment
+
+To deploy the frontend:
+
+1. Build the application:
+   npm run build
+
+2. The production files will be in the `dist` directory, which can be deployed to any static site hosting service.

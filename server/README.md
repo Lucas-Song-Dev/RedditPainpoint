@@ -1,80 +1,111 @@
-# Reddit Pain Point Analyzer
+# Reddit Pain Point Analyzer API
 
-A Flask-based web application that scrapes Reddit for mentions of software products (e.g., Cursor, Replit) and uses NLP techniques to identify common pain points that users experience with these products. This analysis can help identify opportunities for creating browser extensions or other tools to address these pain points.
+A Flask-based API for scraping Reddit and analyzing user pain points with software products. The API uses JWT authentication for secure access and provides endpoints for data collection, analysis, and recommendations.
 
 ## Features
 
 - **Reddit Data Scraping**: Uses PRAW to collect posts mentioning target products
 - **Pain Point Analysis**: Identifies and categorizes common issues mentioned by users
 - **Sentiment Analysis**: Determines the emotional tone of user feedback
-- **OpenAI Integration**: Optional advanced analysis of pain points using OpenAI's API
-- **Visualization Dashboard**: Static admin page for viewing and exploring the data
-- **RESTful API**: Well-documented endpoints for programmatic access
+- **OpenAI Integration**: Advanced analysis of pain points using OpenAI's API
+- **MongoDB Integration**: Persistent storage for all data
+- **JWT Authentication**: Secure access to API endpoints
 
-## Getting Started
+## Environment Setup
 
-### Prerequisites
+The API requires the following environment variables:
+REDDIT_CLIENT_ID=your_reddit_client_id
+REDDIT_CLIENT_SECRET=your_reddit_client_secret
+OPENAI_API_KEY=your_openai_api_key
+JWT_SECRET_KEY=your_jwt_secret_key
+MONGODB_URI=your_mongodb_connection_string
 
-- Python 3.8+
-- Access to Reddit API (client ID and client secret)
-- (Optional) OpenAI API key for advanced analysis
+## API Endpoints
 
-### Installation
+### Authentication
 
-1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run the application: `python main.py`
+#### Register User
 
-### Frontend Integration
+POST /api/register
 
-This API is designed to be used from a frontend application. The backend does not store any API credentials in environment variables or configuration files. Instead, all necessary credentials are provided by the frontend in the API requests.
+Register a new user account.
+**Request Body:**
 
-#### Authentication Methods
-
-API credentials can be provided in two ways:
-
-1. **In Request Headers**:
-   - `X-Reddit-Client-ID`: Reddit API client ID
-   - `X-Reddit-Client-Secret`: Reddit API client secret
-   - `X-OpenAI-API-Key`: OpenAI API key
-
-2. **In Request Body/Query Parameters**:
-   - For POST requests: Include credentials in the JSON body
-   - For GET requests: Include credentials as query parameters
-
-#### Secure Credential Handling
-
-For secure handling of API credentials in your frontend application:
-
-1. Store credentials securely in your frontend using secure storage mechanisms
-2. Use HTTPS for all API communications
-3. Consider implementing a token exchange mechanism for production environments
-4. Don't hardcode API keys in your frontend source code
-
-## API Documentation
-
-### API Endpoints
-
-#### Scrape Posts
-
-```
-POST /api/scrape
-```
-
-Start a scraping job for Reddit posts.
-
-**Request Parameters:**
-- `reddit_client_id` (string, required): Reddit API client ID
-- `reddit_client_secret` (string, required): Reddit API client secret
-- `openai_api_key` (string, required if use_openai=true): OpenAI API key
-- `products` (array, optional): List of product names to scrape. Defaults to ["cursor", "replit"].
-- `limit` (integer, optional): Maximum number of posts to scrape per product. Defaults to 100.
-- `subreddits` (array, optional): List of subreddits to search. If not provided, searches default subreddits.
-- `time_filter` (string, optional): Time period to search ('day', 'week', 'month', 'year', 'all'). Defaults to 'month'.
-- `use_openai` (boolean, optional): Whether to use OpenAI to analyze common pain points. Defaults to false.
-
-**Response:**
 ```json
+{
+  "username": "your_username",
+  "password": "your_password",
+  "email": "your_email@example.com" (optional)
+}
+Response:
+
+{
+  "status": "success",
+  "message": "User registered successfully"
+}
+Status Codes:
+
+201: User created successfully
+400: Missing required fields
+409: Username already exists
+500: Server error
+Login
+POST /api/login
+Authenticate and receive a JWT token.
+
+Request Body:
+
+{
+  "username": "your_username",
+  "password": "your_password"
+}
+Response:
+
+{
+  "status": "success",
+  "message": "Authentication successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires": "2025-04-15T12:34:56"
+}
+Status Codes:
+
+200: Authentication successful
+400: Missing required fields
+401: Invalid credentials
+500: Server error
+The response includes an HTTP-only cookie with the JWT token.
+
+Logout
+POST /api/logout
+Invalidate the current session.
+
+Response:
+
+{
+  "status": "success",
+  "message": "Logout successful"
+}
+Status Codes:
+
+200: Logout successful
+Data Collection
+Scrape Posts
+POST /api/scrape
+Start a scraping job for Reddit posts. Requires authentication.
+
+Request Body:
+
+{
+  "products": ["cursor", "replit"],
+  "limit": 100,
+  "subreddits": ["programming", "webdev", "python"],
+  "time_filter": "month",
+  "use_openai": true
+}
+All parameters are optional with defaults.
+
+Response:
+
 {
   "status": "success",
   "message": "Scraping job started",
@@ -84,61 +115,43 @@ Start a scraping job for Reddit posts.
   "time_filter": "month",
   "use_openai": true
 }
-```
+Status Codes:
 
-#### Get Pain Points
+200: Scraping job started
+401: Unauthorized
+409: A scraping job is already in progress
+500: Server error or API credentials not configured
+Reset Scrape Status
+POST /api/reset-scrape-status
+Reset the scrape_in_progress flag if a scraping job is stuck. Requires authentication.
 
-```
-GET /api/pain-points
-```
+Response:
 
-Get all identified pain points.
-
-**Query Parameters:**
-- `product` (string, optional): Filter by product name.
-- `limit` (integer, optional): Limit number of results.
-- `min_severity` (float, optional): Minimum severity score (0-1).
-
-**Response:**
-```json
 {
   "status": "success",
-  "count": 12,
-  "pain_points": [
-    {
-      "name": "Slow Performance",
-      "description": "Users complain about lag and slowness",
-      "product": "Cursor",
-      "frequency": 15,
-      "avg_sentiment": -0.75,
-      "severity": 0.85,
-      "related_posts": ["post-id-1", "post-id-2"]
-    }
-  ],
-  "last_updated": "2023-08-15T10:30:45"
+  "message": "Scrape status reset successfully"
 }
-```
+Status Codes:
 
-#### Get Posts
-
-```
+200: Status reset successfully
+401: Unauthorized
+Data Retrieval
+Get Posts
 GET /api/posts
-```
+Get all scraped posts with filtering options. Requires authentication.
 
-Get all scraped posts.
+Query Parameters:
 
-**Query Parameters:**
-- `product` (string, optional): Filter by product name.
-- `limit` (integer, optional): Limit number of results.
-- `has_pain_points` (boolean, optional): Only return posts with identified pain points.
-- `subreddit` (string, optional): Filter by subreddit name.
-- `min_score` (integer, optional): Minimum score threshold.
-- `min_comments` (integer, optional): Minimum comments threshold.
-- `sort_by` (string, optional): Field to sort by ('date', 'score', 'comments', 'sentiment'). Default: 'date'.
-- `sort_order` (string, optional): Sort order ('asc' or 'desc'). Default: 'desc'.
+product (string, optional): Filter by product name
+limit (integer, optional): Limit number of results
+has_pain_points (boolean, optional): Only return posts with identified pain points
+subreddit (string, optional): Filter by subreddit name
+min_score (integer, optional): Minimum score threshold
+min_comments (integer, optional): Minimum comments threshold
+sort_by (string, optional): Field to sort by ('date', 'score', 'comments', 'sentiment'). Default: 'date'
+sort_order (string, optional): Sort order ('asc' or 'desc'). Default: 'desc'
+Response:
 
-**Response:**
-```json
 {
   "status": "success",
   "count": 25,
@@ -154,7 +167,8 @@ Get all scraped posts.
       "num_comments": 23,
       "sentiment": -0.65,
       "topics": ["performance", "stability"],
-      "pain_points": ["Crashes on large files", "Memory usage"]
+      "pain_points": ["Crashes on large files", "Memory usage"],
+      "products": ["cursor"]
     }
   ],
   "filters_applied": {
@@ -168,56 +182,56 @@ Get all scraped posts.
     "field": "date",
     "order": "desc"
   },
-  "last_updated": "2023-08-15T10:30:45"
+  "last_updated": "2023-08-15T10:30:45",
+  "data_source": "mongodb"
 }
-```
+Status Codes:
 
-#### Get Status
+200: Success
+400: Invalid query parameters
+401: Unauthorized
+Get Pain Points
+GET /api/pain-points
+Get all identified pain points. Requires authentication.
 
-```
-GET /api/status
-```
+Query Parameters:
 
-Get current status of the scraper and test API connections.
+product (string, optional): Filter by product name
+limit (integer, optional): Limit number of results
+min_severity (float, optional): Minimum severity score (0-1)
+Response:
 
-**Query Parameters (all optional, for testing connections):**
-- `reddit_client_id`: Reddit API client ID
-- `reddit_client_secret`: Reddit API client secret
-- `openai_api_key`: OpenAI API key
-
-**Response:**
-```json
 {
   "status": "success",
-  "scrape_in_progress": false,
-  "last_scrape_time": "2023-08-15T10:30:45",
-  "raw_posts_count": 150,
-  "analyzed_posts_count": 150,
-  "pain_points_count": 25,
-  "subreddits_scraped": ["programming", "webdev", "python"],
-  "has_openai_analyses": true,
-  "openai_analyses_count": 2,
-  "apis": {
-    "reddit": "connected",
-    "openai": "connected"
-  }
+  "count": 12,
+  "pain_points": [
+    {
+      "id": "pain-point-id-1",
+      "name": "Slow Performance",
+      "description": "Users complain about lag and slowness",
+      "product": "Cursor",
+      "frequency": 15,
+      "avg_sentiment": -0.75,
+      "severity": 0.85,
+      "related_posts": ["post-id-1", "post-id-2"],
+      "topics": ["performance"]
+    }
+  ],
+  "last_updated": "2023-08-15T10:30:45"
 }
-```
+Status Codes:
 
-#### Get OpenAI Analysis
-
-```
+200: Success
+401: Unauthorized
+Get OpenAI Analysis
 GET /api/openai-analysis
-```
+Get the OpenAI analysis of pain points. Requires authentication.
 
-Get the OpenAI analysis of pain points.
+Query Parameters:
 
-**Query Parameters:**
-- `product` (string, optional): Filter by product name.
-- `openai_api_key` (string, required): OpenAI API key for authentication (can also be provided in X-OpenAI-API-Key header)
+products[] (array, optional): List of product names to filter by
+Response:
 
-**Response:**
-```json
 {
   "status": "success",
   "openai_enabled": true,
@@ -238,18 +252,123 @@ Get the OpenAI analysis of pain points.
     }
   ]
 }
-```
+Status Codes:
 
-## Using OpenAI for Analysis
+200: Success
+401: Unauthorized
+500: OpenAI API key not configured
+Get Recommendations
+GET /api/recommendations
+Get saved recommendations for addressing pain points. Requires authentication.
 
-When the `use_openai` parameter is set to `true` in the scrape API call, the system uses OpenAI to perform advanced analysis of the pain points. This requires an OpenAI API key to be provided in the request.
+Query Parameters:
 
-The OpenAI analysis provides:
-- A summary of common pain points
-- Categorized pain points with severity analysis
-- Potential solutions for each pain point
-- Related keywords for further investigation
+products[] (array, optional): List of product names to get recommendations for
+Response:
 
-## License
+{
+  "status": "success",
+  "recommendations": [
+    {
+      "product": "Cursor",
+      "timestamp": "2023-08-15T10:30:45",
+      "recommendations": [
+        {
+          "title": "Performance Optimization Extension",
+          "description": "Create a browser extension that optimizes Cursor's performance by...",
+          "complexity": "medium",
+          "impact": "high",
+          "addresses_pain_points": ["Slow Performance", "Memory Usage"],
+          "most_recent_occurence": "2023-08-14"
+        }
+      ],
+      "summary": "These recommendations focus on addressing the most critical performance and stability issues..."
+    }
+  ]
+}
+Status Codes:
 
+200: Success
+401: Unauthorized
+500: Database error
+Generate New Recommendations
+POST /api/recommendations
+Generate new recommendations based on analyses using OpenAI. Requires authentication.
+
+Request Body:
+
+{
+  "products": ["cursor", "replit"]
+}
+Response:
+Same format as GET /api/recommendations
+
+Status Codes:
+
+200: Success
+401: Unauthorized
+500: OpenAI API key not configured or server error
+Get Status
+GET /api/status
+Get current status of the scraper and data store. Requires authentication.
+
+Response:
+
+{
+  "status": "success",
+  "scrape_in_progress": false,
+  "last_scrape_time": "2023-08-15T10:30:45",
+  "raw_posts_count": 150,
+  "analyzed_posts_count": 150,
+  "pain_points_count": 25,
+  "subreddits_scraped": ["programming", "webdev", "python"],
+  "has_openai_analyses": true,
+  "openai_analyses_count": 2,
+  "apis": {
+    "reddit": "connected",
+    "openai": "connected"
+  }
+}
+Status Codes:
+
+200: Success
+401: Unauthorized
+Authentication Requirements
+All API endpoints (except register and login) require a JWT token for authentication. The token can be provided in one of two ways:
+
+As an HTTP-only cookie (automatically included by browsers)
+In the Authorization header as a Bearer token:
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Error Handling
+All API endpoints return a consistent error format:
+
+{
+  "status": "error",
+  "message": "Error description"
+}
+Common error status codes:
+
+400: Bad Request (invalid parameters)
+401: Unauthorized (missing or invalid authentication)
+404: Not Found (resource doesn't exist)
+409: Conflict (e.g., duplicate resource)
+500: Internal Server Error
+MongoDB Integration
+The API uses MongoDB for persistent storage of:
+
+Reddit posts
+Pain points
+OpenAI analyses
+Recommendations
+User data
+When MongoDB is not configured, the API falls back to in-memory storage, but data won't persist across restarts.
+
+Using the API with OpenAI
+To use OpenAI for analysis, set the OPENAI_API_KEY environment variable. The OpenAI integration provides:
+
+Analysis of pain points with severity ratings
+Generated recommendations for addressing identified issues
+Summaries of common user complaints
+License
 MIT License
+```
