@@ -19,7 +19,6 @@ const LoginPage = ({ onLoginSuccess }) => {
     try {
       const response = await loginUser({ username, password });
 
-      // Login successful
       if (response.status === "success") {
         // Call the onLoginSuccess callback to update auth state
         onLoginSuccess();
