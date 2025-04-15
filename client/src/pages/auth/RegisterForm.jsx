@@ -1,7 +1,7 @@
 // src/pages/auth/RegisterForm.jsx
 import { useState } from "react";
 import { registerUser } from "../../api/api";
-import "./RegisterForm.scss";
+import "./registerForm.scss";
 
 const RegisterForm = ({ onRegisterSuccess, onCancel }) => {
   const [username, setUsername] = useState("");

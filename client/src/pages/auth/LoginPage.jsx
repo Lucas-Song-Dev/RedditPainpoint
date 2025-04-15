@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { loginUser } from "../../api/api";
 import RegisterForm from "./RegisterForm";
-import "./LoginPage.scss";
+import "./loginpage.scss";
 
 const LoginPage = ({ onLoginSuccess }) => {
   const [username, setUsername] = useState("");
