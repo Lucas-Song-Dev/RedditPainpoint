@@ -120,30 +120,47 @@ export const logoutUser = async () => {
 };
 
 /**
- * Get recommendations for addressing pain points
+ * Get saved recommendations without generating new ones
  * @param {{
- *   product?: string | string[],
- *   min_severity?: number
+ *   products?: string[]
  * }} options
  */
-export const fetchRecommendations = async ({ product, min_severity }) => {
+export const fetchSavedRecommendations = async ({ products }) => {
   // eslint-disable-next-line no-useless-catch
   try {
-    // Handle array of products
     let params = {};
-
-    if (Array.isArray(product)) {
-      params.products = product.join(",");
-    } else if (product) {
-      params.product = product;
-    }
-
-    if (min_severity !== undefined) {
-      params.min_severity = min_severity;
+    if (Array.isArray(products) && products.length > 0) {
+      // Convert array to products[] format for query params
+      products.forEach((product) => {
+        params["products[]"] = params["products[]"] || [];
+        params["products[]"].push(product);
+      });
     }
 
     const res = await axios.get(`${API_BASE}/recommendations`, {
       params: params,
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Generate new recommendations using OpenAI
+ * @param {{
+ *   products?: string[]
+ * }} options
+ */
+export const generateRecommendations = async ({ products }) => {
+  // eslint-disable-next-line no-useless-catch
+  try {
+    const requestData = {
+      products: Array.isArray(products) ? products : [],
+    };
+
+    const res = await axios.post(`${API_BASE}/recommendations`, requestData, {
       withCredentials: true,
     });
     return res.data;

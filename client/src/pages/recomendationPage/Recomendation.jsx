@@ -1,6 +1,9 @@
 // Recommendations.jsx
 import { useEffect, useState } from "react";
-import { fetchRecommendations } from "@/api/api.js";
+import {
+  fetchSavedRecommendations,
+  generateRecommendations,
+} from "@/api/api.js";
 import "./recommendation.scss";
 
 const Recommendations = () => {
@@ -36,17 +39,35 @@ const Recommendations = () => {
   useEffect(() => {
     localStorage.setItem("recommendations_products", JSON.stringify(products));
   }, [products]);
+  // In Recommendations.jsx
+  // Update the fetchData function
 
-  // Fetch recommendations from API
-  const fetchData = async () => {
+  const fetchData = async (forceGenerate = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await fetchRecommendations({
-        product: products,
-        min_severity: minSeverity,
-      });
+      let data;
+
+      if (forceGenerate) {
+        // Generate new recommendations
+        data = await generateRecommendations({
+          products: products,
+        });
+      } else {
+        // Try to get saved recommendations first
+        data = await fetchSavedRecommendations({
+          products: products,
+        });
+
+        // If no recommendations found, generate new ones
+        if (!data.recommendations || data.recommendations.length === 0) {
+          setLoading(true); // Keep loading state active
+          data = await generateRecommendations({
+            products: products,
+          });
+        }
+      }
 
       setRecommendations(data.recommendations || []);
       setFilteredRecommendations(data.recommendations || []);
@@ -224,9 +245,8 @@ const Recommendations = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    fetchData();
+  const handleSubmit = (forceGenerate = false) => {
+    fetchData(forceGenerate);
   };
 
   // Handle sort criteria change
@@ -325,13 +345,23 @@ const Recommendations = () => {
           />
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading || products.length === 0}
-          className="analyze-button"
-        >
-          {loading ? "Loading..." : "Generate Recommendations"}
-        </button>
+        <div className="button-group">
+          <button
+            onClick={() => handleSubmit(false)}
+            disabled={loading || products.length === 0}
+            className="analyze-button"
+          >
+            {loading ? "Loading..." : "Get Recommendations"}
+          </button>
+
+          <button
+            onClick={() => handleSubmit(true)}
+            disabled={loading || products.length === 0}
+            className="regenerate-button"
+          >
+            {loading ? "Loading..." : "Generate New Recommendations"}
+          </button>
+        </div>
       </div>
 
       {/* Search */}

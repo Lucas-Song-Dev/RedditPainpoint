@@ -159,6 +159,35 @@ class MongoDBStore:
         except Exception as e:
             logger.error(f"Error saving post: {str(e)}")
             return False
+    def save_recommendations(self, product, recommendations):
+        """Save recommendations to database"""
+        if self.db is None:
+            logger.error("Cannot save recommendations: Database connection not established")
+            return False
+        
+        try:
+            # Prepare recommendations document
+            recommendations_data = {
+                "product": product,
+                "recommendations": recommendations,
+                "created_at": datetime.utcnow()
+            }
+            
+            # Use product name as ID
+            recommendations_data['_id'] = product
+            
+            # Insert or update recommendations
+            result = self.db.recommendations.update_one(
+                {"_id": product},
+                {"$set": recommendations_data},
+                upsert=True
+            )
+            
+            logger.info(f"Saved recommendations for {product}")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving recommendations: {str(e)}")
+            return False
     
     def save_pain_point(self, pain_point):
         """Save pain point to database and local cache"""
@@ -204,7 +233,7 @@ class MongoDBStore:
         try:
             # Prepare analysis document
             analysis_data = {
-                "product": product,
+                "product": product.strip().lower(),
                 "analysis": analysis,
                 "created_at": datetime.utcnow()
             }

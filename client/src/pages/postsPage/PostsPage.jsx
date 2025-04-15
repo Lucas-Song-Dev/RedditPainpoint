@@ -14,7 +14,7 @@ const Posts = () => {
 
   // API filter options
   const [apiFilters, setApiFilters] = useState({
-    product: "Cursor",
+    product: "",
     has_pain_points: true,
     limit: 20,
     sort_by: "score",

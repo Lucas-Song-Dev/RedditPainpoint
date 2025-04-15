@@ -5,6 +5,7 @@ from flask import jsonify, request, Blueprint, current_app, make_response
 from flask_restful import Resource
 from datetime import datetime, timedelta
 from threading import Thread
+import re
 
 from dotenv import load_dotenv
 from functools import wraps
@@ -332,8 +333,15 @@ class ScrapePosts(Resource):
                 logger.info(f"Saved {len(all_posts)} posts to MongoDB")
                 
                 pain_points = analyzer.categorize_pain_points(all_posts, products)
-                for product, pain_point_list in pain_points.items():
-                    for pain_point in pain_point_list:
+                for key, pain_point in pain_points.items():
+                    print(pain_point)
+                    # Check if it's already a list or a single object
+                    if isinstance(pain_point, list):
+                        # If it's a list, iterate through it
+                        for pp in pain_point:
+                            data_store.save_pain_point(pp)
+                    else:
+                        # If it's a single object, save it directly
                         data_store.save_pain_point(pain_point)
                 
                 logger.info(f"Saved pain points to MongoDB")
@@ -361,6 +369,7 @@ class ScrapePosts(Resource):
                     for product, product_posts in posts_by_product.items():
                         if len(product_posts) > 0:
                             analysis = openai_analyzer.analyze_common_pain_points(product_posts, product)
+                            print(analysis,"doiasjdoasji")
                             if 'error' not in analysis:
                                 # Save analysis to MongoDB
                                 data_store.save_openai_analysis(product, analysis)
@@ -389,25 +398,96 @@ class ScrapePosts(Resource):
             "time_filter": time_filter,
             "use_openai": use_openai
         }
-class GetRecommendations(Resource):
-    """API endpoint to get product recommendations based on pain points"""
+class Recommendations(Resource):
+    """API endpoint to handle recommendations (get and generate)"""
     @token_required
     def get(self, current_user):
         """
-        Get generated recommendations for addressing pain points
+        Get previously saved recommendations from the database
         
         GET parameters:
-        - product (str): Single product name (optional, for backward compatibility)
-        - products (str): Comma-separated list of product names (optional)
-        - min_severity (float): Minimum severity of pain points to consider (optional)
+        - products[] (list): List of product names to get recommendations for
         
         Returns:
-            JSON response with recommendations data
+            JSON response with saved recommendations
         """
         # Get query parameters
-        product = request.args.get('product')
-        products_param = request.args.get('products')
-        min_severity = request.args.get('min_severity', type=float, default=0)
+        products_param = request.args.getlist('products[]')
+        logger.info(f"Requested saved recommendations for products: {products_param}")
+        
+        # Initialize empty results
+        all_recommendations = []
+        
+        # If database is connected, try to get recommendations from MongoDB
+        if data_store.db is not None:
+            try:
+                # Get recommendations for requested products or all products if none specified
+                query = {}
+                if products_param:
+                    # Create case-insensitive queries for product names
+                    product_queries = []
+                    for product in products_param:
+                        if product.strip():
+                            product_queries.append({
+                                "_id": {"$regex": f"^{re.escape(product.strip())}$", "$options": "i"}
+                            })
+                    
+                    if product_queries:
+                        query = {"$or": product_queries}
+                
+                logger.info(f"MongoDB query for recommendations: {query}")
+                recommendations_cursor = data_store.db.recommendations.find(query)
+                
+                # Process each recommendation
+                for rec_doc in recommendations_cursor:
+                    recommendations = rec_doc.get('recommendations', {})
+                    if recommendations:
+                        all_recommendations.append(recommendations)
+                    else:
+                        logger.warning(f"No recommendations found for product: {rec_doc.get('_id')}")
+                
+                if all_recommendations:
+                    return {
+                        "status": "success",
+                        "recommendations": all_recommendations
+                    }
+                else:
+                    return {
+                        "status": "info",
+                        "message": "No saved recommendations found for the requested products",
+                        "recommendations": []
+                    }
+                
+            except Exception as e:
+                logger.error(f"Error retrieving recommendations from MongoDB: {str(e)}")
+                return {
+                    "status": "error",
+                    "message": f"Error retrieving recommendations: {str(e)}",
+                    "recommendations": []
+                }, 500
+        
+        # If database is not connected
+        return {
+            "status": "error",
+            "message": "Database connection not established or no recommendations found",
+            "recommendations": []
+        }, 500
+    
+    @token_required
+    def post(self, current_user):
+        """
+        Generate and save new recommendations based on analyses
+        
+        POST parameters (JSON):
+        - products (list): List of product names to generate recommendations for
+        
+        Returns:
+            JSON response with generated recommendations
+        """
+        # Get request data
+        request_data = request.get_json() or {}
+        products_param = request_data.get('products', [])
+        logger.info(f"Requested to generate recommendations for products: {products_param}")
         
         # Ensure OpenAI is initialized
         if not OPENAI_API_KEY:
@@ -425,78 +505,98 @@ class GetRecommendations(Resource):
                     "openai_enabled": False
                 }, 500
         
-        # Get all pain points from data store
-        pain_points_dict = data_store.pain_points
-        
-        if not pain_points_dict:
-            return {
-                "status": "info",
-                "message": "No pain points available. Use the scrape endpoint to collect data first.",
-                "openai_enabled": True,
-                "recommendations": []
-            }
-        
         # Store recommendations for each product
         all_recommendations = []
         
-        # Parse multiple products
-        if products_param:
-            requested_products = [p.strip().lower() for p in products_param.split(',') if p.strip()]
-            for prod in requested_products:
-                # Get pain points for this product with minimum severity
-                product_pain_points = [
-                    p.to_dict() for p in pain_points_dict.values() 
-                    if p.product.lower() == prod.lower() and p.severity >= min_severity
-                ]
+        # If database is connected, try to get analyses from MongoDB first
+        if data_store.db is not None:
+            try:
+                # Get analyses for requested products or all products if none specified
+                query = {}
+                if products_param:
+                    # Create case-insensitive queries for product names
+                    product_queries = []
+                    for product in products_param:
+                        if isinstance(product, str) and product.strip():
+                            product_queries.append({
+                                "_id": {"$regex": f"^{re.escape(product.strip())}$", "$options": "i"}
+                            })
+                    
+                    if product_queries:
+                        query = {"$or": product_queries}
                 
-                if product_pain_points:
-                    # Generate recommendations for this product
-                    recommendations = openai_analyzer.generate_recommendations(product_pain_points, prod)
+                logger.info(f"MongoDB query for analyses: {query}")
+                analyses_cursor = data_store.db.openai_analysis.find(query)
+                
+                # Process each analysis
+                for analysis_doc in analyses_cursor:
+                    product_name = analysis_doc.get('_id')
+                    analysis = analysis_doc.get('analysis', {})
+                    
+                    if not analysis:
+                        logger.warning(f"No analysis data found for {product_name}")
+                        continue
+                    
+                    # Extract pain points from the analysis
+                    pain_points = analysis.get('common_pain_points', [])
+                    
+                    if not pain_points:
+                        logger.warning(f"No pain points found in analysis for {product_name}")
+                        continue
+                    
+                    logger.info(f"Generating recommendations for {product_name} based on {len(pain_points)} pain points")
+                    
+                    # Generate recommendations for this product's pain points
+                    recommendations = openai_analyzer.generate_recommendations(pain_points, product_name)
+                    
+                    # Save the recommendations to MongoDB
+                    save_result = data_store.save_recommendations(product_name, recommendations)
+                    if save_result:
+                        logger.info(f"Saved recommendations for {product_name} to MongoDB")
+                    else:
+                        logger.warning(f"Failed to save recommendations for {product_name}")
+                    
                     all_recommendations.append(recommendations)
                 
+                # Return the recommendations
+                return {
+                    "status": "success",
+                    "openai_enabled": True,
+                    "recommendations": all_recommendations
+                }
+                
+            except Exception as e:
+                logger.error(f"Error retrieving analyses from MongoDB: {str(e)}")
+                # Fall back to in-memory data if MongoDB query fails
+        
+        # Fall back to in-memory data if database is not connected or query failed
+        # Get all analyses from in-memory cache
+        if not data_store.openai_analyses:
             return {
-                "status": "success",
+                "status": "info",
+                "message": "No OpenAI analyses available. Use the scrape endpoint with use_openai=true to generate analysis.",
                 "openai_enabled": True,
-                "recommendations": all_recommendations
-            }
+                "recommendations": []
+            }, 400
         
-        # Single product (legacy support)
-        if product:
-            # Get pain points for this product with minimum severity
-            product_pain_points = [
-                p.to_dict() for p in pain_points_dict.values() 
-                if p.product.lower() == product.lower() and p.severity >= min_severity
+        # Process requested products or all products if none specified
+        product_keys = list(data_store.openai_analyses.keys())
+        if products_param:
+            # Filter to only requested products (case-insensitive)
+            requested_products = [p.strip().lower() for p in products_param if isinstance(p, str) and p.strip()]
+            product_keys = [
+                key for key in product_keys 
+                if any(key.lower() == req_prod for req_prod in requested_products)
             ]
-            
-            if product_pain_points:
-                # Generate recommendations for this product
-                recommendations = openai_analyzer.generate_recommendations(product_pain_points, product)
-                return {
-                    "status": "success",
-                    "openai_enabled": True,
-                    "recommendations": [recommendations]
-                }
-            else:
-                return {
-                    "status": "success",
-                    "openai_enabled": True,
-                    "recommendations": []
-                }
-        
-        # If no product specified, get unique products from pain points
-        unique_products = set(p.product for p in pain_points_dict.values())
         
         # Generate recommendations for each product
-        for prod in unique_products:
-            # Get pain points for this product with minimum severity
-            product_pain_points = [
-                p.to_dict() for p in pain_points_dict.values() 
-                if p.product == prod and p.severity >= min_severity
-            ]
+        for product_key in product_keys:
+            analysis = data_store.openai_analyses[product_key]
+            pain_points = analysis.get('common_pain_points', [])
             
-            if product_pain_points:
-                # Generate recommendations for this product
-                recommendations = openai_analyzer.generate_recommendations(product_pain_points, prod)
+            if pain_points:
+                # Generate recommendations for this product's pain points
+                recommendations = openai_analyzer.generate_recommendations(pain_points, product_key)
                 all_recommendations.append(recommendations)
         
         return {
@@ -796,28 +896,13 @@ class GetOpenAIAnalysis(Resource):
             JSON response with OpenAI analysis data
         """
         # Get query parameters
-        product = request.args.get('product')
         products_param = request.args.getlist('products[]')
         logger.info(f"Requested products: {products_param}")
-        
-        # Ensure OpenAI is initialized with server-side credentials
-        if not OPENAI_API_KEY:
-            return {
-                "status": "error",
-                "message": "OpenAI API key not configured on server",
-                "openai_enabled": False
-            }, 500
-            
-        if not openai_analyzer.api_key:
-            if not openai_analyzer.initialize_client(OPENAI_API_KEY):
-                return {
-                    "status": "error",
-                    "message": "Failed to initialize OpenAI client",
-                    "openai_enabled": False
-                }, 500
+        print("got here")
         
         # Check if MongoDB is connected
         if data_store.db is None:
+
             # Fallback to in-memory data
             if not data_store.openai_analyses:
                 return {
@@ -826,53 +911,19 @@ class GetOpenAIAnalysis(Resource):
                     "openai_enabled": True,
                     "analyses": []
                 }
-                
-            # Parse multiple products from in-memory data
-            matched_analyses = []
-            if len(products_param) > 0:
-                requested_products = [p.strip().lower() for p in products_param if p.strip()]
-                for prod in requested_products:
-                    for key in data_store.openai_analyses:
-                        if key.lower() == prod.lower():
-                            matched_analyses.append(data_store.openai_analyses[key])
-                return {
-                    "status": "success",
-                    "openai_enabled": True,
-                    "analyses": matched_analyses
-                }
-
-            # Single product (legacy support) from in-memory data
-            if product:
-                for key in data_store.openai_analyses:
-                    if key.lower() == product.lower():
-                        return {
-                            "status": "success",
-                            "openai_enabled": True,
-                            "analyses": [data_store.openai_analyses[key]]
-                        }
-                return {
-                    "status": "success",
-                    "openai_enabled": True,
-                    "analyses": []
-                }
-
-            # Return all analyses from in-memory data if no filters are applied
-            return {
-                "status": "success",
-                "openai_enabled": True,
-                "analyses": list(data_store.openai_analyses.values())
-            }
-        
+    
         # Using MongoDB for data retrieval
         try:
             # Parse multiple products from MongoDB
             if len(products_param) > 0:
                 requested_products = [p.strip().lower() for p in products_param if p.strip()]
+                print(requested_products)
                 matched_analyses = []
                 
                 # Use MongoDB's $in operator to find matching products in one query
-                query = {"_id": {"$in": requested_products}}
+                query = {"product": {"$in": requested_products}}
                 cursor = data_store.db.openai_analysis.find(query)
+                print(cursor)
                 
                 for doc in cursor:
                     # Transform to the expected response format
@@ -885,32 +936,6 @@ class GetOpenAIAnalysis(Resource):
                     "status": "success",
                     "openai_enabled": True,
                     "analyses": matched_analyses
-                }
-            
-            # Single product (legacy support) from MongoDB
-            if product:
-                product_lower = product.lower()
-                doc = data_store.db.openai_analysis.find_one({"_id": product_lower})
-                
-                if doc:
-                    # Return the analysis field if it exists
-                    if "analysis" in doc:
-                        return {
-                            "status": "success",
-                            "openai_enabled": True,
-                            "analyses": [doc["analysis"]]
-                        }
-                    # Otherwise return the whole document
-                    return {
-                        "status": "success",
-                        "openai_enabled": True,
-                        "analyses": [doc]
-                    }
-                
-                return {
-                    "status": "success",
-                    "openai_enabled": True,
-                    "analyses": []
                 }
             
             # Return all analyses from MongoDB if no filters are applied
@@ -960,6 +985,7 @@ def initialize_routes(api):
     api.add_resource(GetPosts, '/api/posts')
     api.add_resource(GetStatus, '/api/status')
     api.add_resource(GetOpenAIAnalysis, '/api/openai-analysis')
-    api.add_resource(GetRecommendations, '/api/recommendations')
+    api.add_resource(Recommendations, '/api/recommendations')
+
 # Export the blueprint for registration
 main_bp = routes_bp

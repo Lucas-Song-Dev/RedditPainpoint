@@ -65,18 +65,27 @@ class OpenAIAnalyzer:
         Returns:
             dict: Common pain points analysis
         """
+        print("Starting analyze_common_pain_points...")
+        print(f"Product Name: {product_name}")
+        print(f"Number of Posts Received: {len(posts) if posts else 0}")
+        
         # Try to initialize client if it's not already initialized
         if not self.client and self.api_key:
+            print("Client not initialized. Attempting to initialize with API key...")
             self.initialize_client(self.api_key)
+        else:
+            print("Client already initialized or API key missing.")
             
         if not self.api_key or not self.client:
             logger.error("OpenAI API key not configured. Cannot analyze common pain points.")
+            print("ERROR: OpenAI API key not configured.")
             return {
                 "error": "OpenAI API key not configured",
                 "common_pain_points": []
             }
             
         if not posts:
+            print("No posts provided for analysis.")
             return {
                 "common_pain_points": [],
                 "analysis_summary": "No posts to analyze"
@@ -84,14 +93,19 @@ class OpenAIAnalyzer:
             
         # Prepare post data for the API
         post_texts = []
-        for post in posts:
-            post_texts.append({
+        for idx, post in enumerate(posts):
+            print(f"Processing post {idx + 1}: Title - {post.title}")
+            post_data = {
                 "title": post.title,
                 "content": post.content,
                 "score": post.score,
                 "num_comments": post.num_comments
-            })
-            
+            }
+            print(f"Post Data: {post_data}")
+            post_texts.append(post_data)
+
+        print("All posts formatted for OpenAI prompt.")
+        
         # Create a prompt for OpenAI
         prompt = f"""
         Analyze the following Reddit posts that may be related to {product_name}. Your task is to identify up to 10 distinct pain points that users have *clearly* associated with {product_name}. Do not include general complaints unless they are specifically tied to {product_name}.
@@ -121,7 +135,7 @@ class OpenAIAnalyzer:
             "analysis_summary": "Brief overview of your findings"
         }}
 
-        Only include up to 10 pain points and skip any that are not clearly connected to {product_name}.
+        Skip any that are not clearly connected to {product_name}.
         """
         
         try:
@@ -145,11 +159,13 @@ class OpenAIAnalyzer:
             
         except Exception as e:
             logger.error(f"Error analyzing pain points with OpenAI: {str(e)}")
+            print(f"Exception occurred: {str(e)}")
             return {
                 "error": str(e),
                 "common_pain_points": [],
                 "analysis_summary": f"Error during analysis: {str(e)}"
             }
+
             
     def generate_recommendations(self, pain_points, product_name):
         """
