@@ -12,6 +12,11 @@ const Recommendations = () => {
   const [filteredRecommendations, setFilteredRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [severityFilters, setSeverityFilters] = useState({
+    low: true,
+    medium: true,
+    high: true,
+  });
 
   // Filters and sorting
   const [products, setProducts] = useState(() => {
@@ -41,6 +46,14 @@ const Recommendations = () => {
   }, [products]);
   // In Recommendations.jsx
   // Update the fetchData function
+
+  // Add this handler function
+  const handleSeverityCheckboxChange = (severity) => {
+    setSeverityFilters((prev) => ({
+      ...prev,
+      [severity]: !prev[severity],
+    }));
+  };
 
   const fetchData = async (forceGenerate = false) => {
     setLoading(true);
@@ -123,6 +136,18 @@ const Recommendations = () => {
         (rec) => rec.impact?.toLowerCase() === impactFilter
       );
     }
+
+    // Apply severity filters - filter out items that don't match any of the selected severity levels
+    flattenedRecs = flattenedRecs.filter((rec) => {
+      const complexity = rec.complexity?.toLowerCase();
+      const impact = rec.impact?.toLowerCase();
+
+      // Check if the recommendation's complexity or impact matches any enabled severity filter
+      return (
+        (complexity && severityFilters[complexity]) ||
+        (impact && severityFilters[impact])
+      );
+    });
 
     // Apply search filter
     if (searchTerm.trim()) {
@@ -329,20 +354,54 @@ const Recommendations = () => {
           </div>
         </div>
 
-        <div className="min-severity-container">
-          <label htmlFor="min-severity">
-            Min Severity: {minSeverity.toFixed(1)}
-          </label>
-          <input
-            id="min-severity"
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            value={minSeverity}
-            onChange={handleMinSeverityChange}
-            className="severity-slider"
-          />
+        <div className="severity-filter-container">
+          <label>Severity Filters</label>
+          <div className="checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={severityFilters.low}
+                onChange={() => handleSeverityCheckboxChange("low")}
+              />
+              <span
+                className={`severity-checkbox severity-low ${
+                  severityFilters.low ? "checked" : ""
+                }`}
+              >
+                Low
+              </span>
+            </label>
+
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={severityFilters.medium}
+                onChange={() => handleSeverityCheckboxChange("medium")}
+              />
+              <span
+                className={`severity-checkbox severity-medium ${
+                  severityFilters.medium ? "checked" : ""
+                }`}
+              >
+                Medium
+              </span>
+            </label>
+
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={severityFilters.high}
+                onChange={() => handleSeverityCheckboxChange("high")}
+              />
+              <span
+                className={`severity-checkbox severity-high ${
+                  severityFilters.high ? "checked" : ""
+                }`}
+              >
+                High
+              </span>
+            </label>
+          </div>
         </div>
 
         <div className="button-group">
