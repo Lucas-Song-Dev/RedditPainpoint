@@ -719,6 +719,7 @@
   background: rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   padding: 20px;
+  // margin-bottom: 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
   overflow: hidden;
@@ -838,9 +839,10 @@
 
 // Content Expansion
 .recommendation-content {
-  max-height: 100px;
   overflow: hidden;
   transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 0px;
+
   
   &.expanded {
     max-height: 2000px;
