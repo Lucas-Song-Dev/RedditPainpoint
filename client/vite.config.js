@@ -9,4 +9,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `
+          @use "sass:color";
+          @use "/src/styles/variables" as *;
+        `,
+      },
+    },
+  },
 });

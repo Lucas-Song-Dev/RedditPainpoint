@@ -264,47 +264,51 @@ const Posts = () => {
           </div>
         </form>
       </div>
-
-      <button
-        className="clear-button"
-        onClick={handleClearFilters}
-        type="button"
-      >
-        Clear Filters
-      </button>
-      {/* View Mode Toggle */}
-      <div className="view-toggle-container">
-        <span className="view-toggle-label">View:</span>
-        <button
-          className={`view-toggle-button ${
-            viewMode === "list" ? "active" : ""
-          }`}
-          onClick={() => setViewMode("list")}
-          title="List View"
-        >
-          <span className="icon">☰</span>
-        </button>
-        <button
-          className={`view-toggle-button ${
-            viewMode === "grid" ? "active" : ""
-          }`}
-          onClick={() => setViewMode("grid")}
-          title="Grid View"
-        >
-          <span className="icon">⊞</span>
-        </button>
-      </div>
-      {/* Results Metadata */}
-      <div className="results-meta">
-        <span className="results-count">
-          Showing {filteredPosts.length} of {posts.length} posts
-        </span>
-        {filteredPosts.length !== posts.length && (
-          <span className="filtered-note">
-            (filtered from {posts.length} total posts)
-          </span>
-        )}
-      </div>
+      <section className="results-controls">
+        <div className="controls-left">
+          <button
+            className="clear-button"
+            onClick={handleClearFilters}
+            type="button"
+          >
+            Clear Filters
+          </button>
+        </div>
+        <div className="controls-middle">
+          <div className="results-meta">
+            <span className="results-count">
+              Showing {filteredPosts.length} of {posts.length} posts
+            </span>
+            {filteredPosts.length !== posts.length && (
+              <span className="filtered-note">
+                (filtered from {posts.length} total posts)
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="controls-right">
+          <div className="view-toggle-container">
+            <button
+              className={`view-toggle-button ${
+                viewMode === "list" ? "active" : ""
+              }`}
+              onClick={() => setViewMode("list")}
+              title="List View"
+            >
+              <span className="icon">☰</span>
+            </button>
+            <button
+              className={`view-toggle-button ${
+                viewMode === "grid" ? "active" : ""
+              }`}
+              onClick={() => setViewMode("grid")}
+              title="Grid View"
+            >
+              <span className="icon">⊞</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Error Message */}
       {error && <div className="error-message">{error}</div>}

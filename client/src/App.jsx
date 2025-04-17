@@ -40,13 +40,131 @@ function App() {
     switch (activePage) {
       case "home":
         return (
-          <>
-            <h1>Reddit Scraper Dashboard</h1>
-            <p>
-              Select a page from the sidebar to navigate through the
-              application.
-            </p>
-          </>
+          <div className="home-container">
+            <div className="welcome-header">
+              <h1>Product Painpoint Analyzer</h1>
+              <p className="tagline">
+                Discover user pain points and generate actionable
+                recommendations
+              </p>
+            </div>
+
+            <div className="features-grid">
+              <div className="feature-card">
+                <div className="feature-icon">🔍</div>
+                <h3>Scrape Reddit</h3>
+                <p>
+                  Collect posts mentioning specific products across multiple
+                  subreddits to identify common pain points.
+                </p>
+                <button
+                  className="feature-button"
+                  onClick={() => setActivePage("scrapepage")}
+                >
+                  Start Scraping
+                </button>
+              </div>
+
+              <div className="feature-card">
+                <div className="feature-icon">📊</div>
+                <h3>Analyze Data</h3>
+                <p>
+                  Use NLP and sentiment analysis to categorize and prioritize
+                  user pain points by severity.
+                </p>
+                <button
+                  className="feature-button"
+                  onClick={() => setActivePage("analysisPage")}
+                >
+                  View Analysis
+                </button>
+              </div>
+
+              <div className="feature-card">
+                <div className="feature-icon">💡</div>
+                <h3>Get Recommendations</h3>
+                <p>
+                  Generate AI-powered recommendations for addressing the
+                  identified pain points.
+                </p>
+                <button
+                  className="feature-button"
+                  onClick={() => setActivePage("recomendationPage")}
+                >
+                  See Recommendations
+                </button>
+              </div>
+
+              <div className="feature-card">
+                <div className="feature-icon">📝</div>
+                <h3>Browse Posts</h3>
+                <p>
+                  Explore all collected posts with filtering and sorting options
+                  to gain deeper insights.
+                </p>
+                <button
+                  className="feature-button"
+                  onClick={() => setActivePage("post")}
+                >
+                  Browse Posts
+                </button>
+              </div>
+            </div>
+
+            <div className="usage-guide">
+              <h2>How to Use This App</h2>
+              <ol className="steps-list">
+                <li>
+                  <span className="step-number">1</span>
+                  <div className="step-content">
+                    <h4>Configure and Run a Scrape</h4>
+                    <p>
+                      Start with the Advanced Scrape page to collect data about
+                      your products from Reddit. Set your target products,
+                      subreddits, and time range.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span className="step-number">2</span>
+                  <div className="step-content">
+                    <h4>Explore Collected Posts</h4>
+                    <p>
+                      Visit the Posts page to see all scraped content. Use
+                      filters to focus on specific products, subreddits, or
+                      posts with high sentiment scores.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span className="step-number">3</span>
+                  <div className="step-content">
+                    <h4>Review Pain Point Analysis</h4>
+                    <p>
+                      Check the Analysis page to see identified pain points
+                      categorized by severity, frequency, and sentiment.
+                    </p>
+                  </div>
+                </li>
+                <li>
+                  <span className="step-number">4</span>
+                  <div className="step-content">
+                    <h4>Generate Recommendations</h4>
+                    <p>
+                      Use the Recommendation page to get AI-generated ideas for
+                      addressing the most critical pain points.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div className="app-footer">
+              <p>
+                Need help? Check the documentation or contact the administrator.
+              </p>
+            </div>
+          </div>
         );
       case "post":
         return <Post />;
@@ -70,41 +188,45 @@ function App() {
     <div className="app-container">
       {/* Sidebar */}
       <div className="sidebar">
+        <div className="logo-container">
+          <span className="app-logo">PP</span>
+          <span className="app-name">Painpoint Analyzer</span>
+        </div>
         <nav className="nav-menu">
           <ul>
             <li
               className={activePage === "home" ? "active" : ""}
               onClick={() => setActivePage("home")}
             >
-              Home
-            </li>
-            <li
-              className={activePage === "post" ? "active" : ""}
-              onClick={() => setActivePage("post")}
-            >
-              Posts
+              <span className="menu-icon">🏠</span> Home
             </li>
             <li
               className={activePage === "scrapepage" ? "active" : ""}
               onClick={() => setActivePage("scrapepage")}
             >
-              Advanced Scrape
+              <span className="menu-icon">🔍</span> Scrape
+            </li>
+            <li
+              className={activePage === "post" ? "active" : ""}
+              onClick={() => setActivePage("post")}
+            >
+              <span className="menu-icon">📝</span> Posts
             </li>
             <li
               className={activePage === "analysisPage" ? "active" : ""}
               onClick={() => setActivePage("analysisPage")}
             >
-              Analysis
+              <span className="menu-icon">📊</span> Analysis
             </li>
             <li
               className={activePage === "recomendationPage" ? "active" : ""}
               onClick={() => setActivePage("recomendationPage")}
             >
-              Recomendation
+              <span className="menu-icon">💡</span> Recommendation
             </li>
             {/* Logout button at the bottom of sidebar */}
             <li className="logout-item" onClick={handleLogout}>
-              Logout
+              <span className="menu-icon">🚪</span> Logout
             </li>
           </ul>
         </nav>
