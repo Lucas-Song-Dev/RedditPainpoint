@@ -53,7 +53,7 @@ const LoginPage = ({ onLoginSuccess }) => {
         />
       ) : (
         <div className="login-card">
-          <h2>Reddit Scraper Login</h2>
+          <h2>Product Painpoint Login</h2>
           <p className="login-description">
             Enter your credentials to access the dashboard
           </p>
