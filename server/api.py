@@ -105,8 +105,6 @@ def token_required(f):
         
         # Try to get token from cookies first
         token = request.cookies.get('access_token')
-        print("odjasiodjaosida")
-        print(token)
         
         # If not in cookies, check Authorization header
         if not token:
