@@ -2,6 +2,7 @@ import pytest
 from flask import Flask
 from flask_restful import Api
 import os
+from app import app
 
 @pytest.fixture(scope='session')
 def app():
@@ -32,8 +33,9 @@ def app():
     return app
 
 @pytest.fixture
-def client(app):
+def client():
     """Create a test client for the app."""
+    app.config['TESTING'] = True
     return app.test_client()
 
 @pytest.fixture
