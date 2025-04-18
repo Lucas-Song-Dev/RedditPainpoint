@@ -1,14 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-// Mock useAuth before importing App
-vi.mock('../contexts/AuthContext', () => ({
+// Mock the AuthContext with the correct path
+vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
-    isAuthenticated: false,
+    isAuthenticated: true,
     isLoading: false,
     login: vi.fn(),
     logout: vi.fn(),
   }),
+  AuthProvider: ({ children }) => children,
 }));
 
 // Import App after mocking
