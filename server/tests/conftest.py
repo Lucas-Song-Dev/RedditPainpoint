@@ -26,7 +26,7 @@ def app():
     api = Api(app)
     
     # Import and register routes
-    from api import initialize_routes
+    from routes import initialize_routes
     initialize_routes(api)
     
     return app
