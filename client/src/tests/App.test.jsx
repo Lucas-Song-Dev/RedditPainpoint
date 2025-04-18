@@ -10,6 +10,16 @@ vi.mock('@/api/api.js', () => ({
   deletePost: vi.fn().mockResolvedValue({}),
 }));
 
+// Mock the useAuth hook
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 describe('App Component', () => {
   it('renders without crashing', () => {
     const { container } = render(<App />);
