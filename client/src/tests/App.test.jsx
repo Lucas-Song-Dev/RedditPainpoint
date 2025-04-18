@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // Mock the API module
 vi.mock('@/api/api.js', () => ({
@@ -10,30 +11,43 @@ vi.mock('@/api/api.js', () => ({
   deletePost: vi.fn().mockResolvedValue({}),
 }));
 
-// Mock the useAuth hook
-vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({
+// Mock the AuthContext
+vi.mock('@/contexts/AuthContext', () => {
+  const mockAuthContext = {
     isAuthenticated: false,
     isLoading: false,
     login: vi.fn(),
     logout: vi.fn(),
-  }),
-}));
+  };
+
+  return {
+    useAuth: () => mockAuthContext,
+    AuthProvider: ({ children }) => children,
+  };
+});
 
 describe('App Component', () => {
+  const renderApp = () => {
+    return render(
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    );
+  };
+
   it('renders without crashing', () => {
-    const { container } = render(<App />);
+    const { container } = renderApp();
     expect(container).toBeTruthy();
   });
 
   it('renders main content', () => {
-    render(<App />);
+    renderApp();
     const mainContent = screen.getByTestId('main-content');
     expect(mainContent).toBeInTheDocument();
   });
 
   it('renders navigation elements', () => {
-    render(<App />);
+    renderApp();
     const navElements = screen.getAllByRole('navigation');
     expect(navElements.length).toBeGreaterThan(0);
   });
