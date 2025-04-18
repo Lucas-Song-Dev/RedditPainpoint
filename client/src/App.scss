@@ -256,6 +256,7 @@ body {
   
   p {
     color: $medium-text;
+    margin: 0;
     margin-bottom: 20px;
     line-height: 1.6;
     flex-grow: 1;
@@ -317,6 +318,24 @@ body {
       width: 100%;
     }
   }
+}
+
+h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 0px;
+  color: $dark-text;
+  position: relative;
+  display: inline-block;
+}
+
+p {
+  color: $medium-text;
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 80%;
+  margin: 0;
+  margin-bottom: 20px;
 }
 
 .steps-list {

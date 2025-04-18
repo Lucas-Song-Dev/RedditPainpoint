@@ -1,5 +1,5 @@
 // Posts.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchPosts } from "@/api/api.js";
 import "./postsPage.scss";
 
@@ -34,7 +34,7 @@ const Posts = () => {
   };
 
   // Load posts from API
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -48,7 +48,7 @@ const Posts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiFilters]);
 
   // Apply local filters and search
   useEffect(() => {
@@ -90,6 +90,10 @@ const Posts = () => {
 
     setFilteredPosts(result);
   }, [posts, searchTerm, localFilters]);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
 
   // Handle API filter changes
   const handleApiFilterChange = (e) => {
