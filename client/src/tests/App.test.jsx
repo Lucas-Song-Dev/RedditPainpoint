@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider } from '../contexts/AuthContext';
 
 // Mock the API module
-vi.mock('@/api/api.js', () => ({
+vi.mock('../api/api.js', () => ({
   getPosts: vi.fn().mockResolvedValue([]),
   createPost: vi.fn().mockResolvedValue({}),
   updatePost: vi.fn().mockResolvedValue({}),
@@ -12,7 +12,7 @@ vi.mock('@/api/api.js', () => ({
 }));
 
 // Mock the AuthContext
-vi.mock('@/contexts/AuthContext', () => {
+vi.mock('../contexts/AuthContext', () => {
   const mockAuthContext = {
     isAuthenticated: false,
     isLoading: false,
