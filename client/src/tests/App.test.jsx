@@ -12,6 +12,16 @@ vi.mock('../context/AuthContext', () => ({
   AuthProvider: ({ children }) => children,
 }));
 
+// Mock the NotificationContext
+vi.mock('../context/NotificationContext', () => ({
+  useNotification: () => ({
+    notification: null,
+    showNotification: vi.fn(),
+    hideNotification: vi.fn(),
+  }),
+  NotificationProvider: ({ children }) => children,
+}));
+
 // Import App after mocking
 import App from '../App';
 
