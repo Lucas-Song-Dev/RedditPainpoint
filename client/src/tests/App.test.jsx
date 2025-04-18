@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
+
+// Mock the API module
+vi.mock('@/api/api.js', () => ({
+  getPosts: vi.fn().mockResolvedValue([]),
+  createPost: vi.fn().mockResolvedValue({}),
+  updatePost: vi.fn().mockResolvedValue({}),
+  deletePost: vi.fn().mockResolvedValue({}),
+}));
 
 describe('App Component', () => {
   it('renders without crashing', () => {
