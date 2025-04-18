@@ -5,7 +5,7 @@ import AnalysisPage from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrape/ScrapePage";
 import RecomendationPage from "./pages/recomendationPage/Recomendation";
 import StatusBar from "./components/StatusBar";
-import Navbar from "./components/Navbar"; // Import the Navbar component
+import Navbar from "./components/NavBar"; // Import the Navbar component
 import LoginPage from "./pages/auth/LoginPage";
 import { useAuth } from "./context/AuthContext";
 import { logoutUser } from "./api/api";

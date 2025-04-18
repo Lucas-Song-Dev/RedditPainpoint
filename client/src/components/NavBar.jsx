@@ -1,6 +1,6 @@
 // components/Navbar.jsx
 import { useState } from "react";
-import "./navbar.scss";
+import "./navBar.scss";
 
 const Navbar = ({ activePage, setActivePage, handleLogout }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
