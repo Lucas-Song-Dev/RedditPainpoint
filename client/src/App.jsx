@@ -194,7 +194,7 @@ function App() {
       />
 
       {/* Main Content */}
-      <div className="main-content">
+      <div className="main-content" data-testid="main-content">
         <StatusBar />
         {renderContent()}
         <Notification />
