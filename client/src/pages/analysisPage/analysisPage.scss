@@ -1,8 +1,5 @@
 // analysisPage.scss - Modern Glass UI Version
 
-// Variables
-
-
 .analysis-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -480,6 +477,8 @@
 // Pain Points Section
 .pain-points-section {
   padding: 25px;
+
+  
   
   h4 {
     font-size: 18px;
@@ -520,6 +519,16 @@
   transition: all 0.3s;
   overflow: hidden;
   position: relative;
+  
+  .pain-point-content {
+    max-height: 0px;
+    display: none;
+  
+    &.expanded {
+      display: block;
+      max-height: 2000px;
+    }
+  }
   
   &:hover {
     transform: translateY(-3px);

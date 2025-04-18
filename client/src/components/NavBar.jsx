@@ -46,7 +46,7 @@ const Navbar = ({ activePage, setActivePage, handleLogout }) => {
               </svg>
             )}
           </button>
-          {!isCollapsed && <span className="app-name">Painpoint Analyzer</span>}
+          {!isCollapsed && <span className="app-name">Product Painpoint</span>}
         </div>
       </div>
 

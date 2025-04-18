@@ -265,7 +265,7 @@ const OpenAIAnalysis = () => {
           disabled={loading || products.length === 0}
           className="analyze-button"
         >
-          {loading ? "Loading..." : "Analyze Products"}
+          {loading ? "Loading..." : "Get Analysis of Products"}
         </button>
       </div>
 
