@@ -12,7 +12,7 @@
 .recommendations-header {
   margin-bottom: 30px;
   padding: 25px;
-  border-radius: 16px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
@@ -66,7 +66,7 @@
 // Glass Products Section
 .products-section {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -107,7 +107,7 @@
 .product-input-container {
   display: flex;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
   
   input {
@@ -115,7 +115,7 @@
     padding: 12px 15px;
     border: 1px solid rgba(255, 255, 255, 0.6);
     background: rgba(255, 255, 255, 0.8);
-    border-radius: 12px 0 0 12px;
+    border-radius: 4px 0 0 12px;
     font-size: 15px;
     transition: all 0.25s;
     
@@ -171,7 +171,7 @@
   background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: -10%));
   color: white;
   padding: 8px 14px;
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -240,7 +240,7 @@
       
       .severity-checkbox {
         padding: 8px 16px;
-        border-radius: 8px;
+        border-radius: 4px;
         font-size: 14px;
         font-weight: 500;
         transition: all 0.2s;
@@ -335,7 +335,7 @@
   background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: -10%));
   color: white;
   border: none;
-  border-radius: 30px;
+  border-radius: 4px;
   padding: 12px 20px;
   font-size: 15px;
   font-weight: 500;
@@ -379,7 +379,7 @@
   .search-input {
     width: calc(100% - 80px);
     padding: 15px 20px 15px 50px;
-    border-radius: 30px;
+    border-radius: 4px;
     background: rgba(255, 255, 255, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -413,7 +413,7 @@
 .toggle-filters-button {
   background: rgba(255, 255, 255, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 30px;
+  border-radius: 4px;
   padding: 10px 20px;
   font-size: 15px;
   margin-bottom: 20px;
@@ -437,7 +437,7 @@
 // Advanced Filters with Glass Style
 .advanced-filters {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -474,7 +474,7 @@
       padding: 12px 15px;
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.6);
-      border-radius: 12px;
+      border-radius: 4px;
       font-size: 14px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
       transition: all 0.3s;
@@ -491,7 +491,7 @@
       padding: 12px 15px;
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.6);
-      border-radius: 12px;
+      border-radius: 4px;
       font-size: 14px;
       cursor: pointer;
       transition: all 0.3s;
@@ -518,7 +518,7 @@
   justify-content: center;
   padding: 80px 0;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -572,7 +572,7 @@
   -webkit-backdrop-filter: blur(4px);
   color: $error-color;
   padding: 15px 20px;
-  border-radius: 12px;
+  border-radius: 4px;
   margin-bottom: 25px;
   border-left: 4px solid $error-color;
   box-shadow: 0 4px 15px rgba(229, 62, 62, 0.1);
@@ -593,7 +593,7 @@
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  border-radius: 30px;
+  border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.4);
   display: inline-block;
   
@@ -613,7 +613,7 @@
 // Glass Card for Product Recommendations
 .product-card {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -717,7 +717,7 @@
 
 .recommendation-item {
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
+  border-radius: 4px;
   padding: 20px;
   // margin-bottom: 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
@@ -771,7 +771,7 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 10px;
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 600;
   transition: all 0.3s;
@@ -821,7 +821,7 @@
   font-weight: 500;
   cursor: pointer;
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 4px;
   transition: all 0.3s;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -882,7 +882,7 @@
     background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 13px;
     border: 1px solid rgba(99, 102, 241, 0.2);
     transition: all 0.3s;

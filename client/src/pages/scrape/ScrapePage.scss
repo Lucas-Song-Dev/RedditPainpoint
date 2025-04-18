@@ -25,7 +25,7 @@
     width: 60px;
     height: 3px;
     background: linear-gradient(to right, $accent-color, color.adjust($accent-color, $lightness: -15%));
-    border-radius: 3px;
+    border-radius: 4px;
     transition: width 0.3s ease;
   }
   
@@ -45,7 +45,7 @@
 // Glass Card Design
 .card {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -121,7 +121,7 @@
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  border-radius: 30px;
+  border-radius: 4px;
   font-size: 14px;
   font-weight: 500;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -138,8 +138,9 @@
 }
 
 .subreddit-tag {
-  background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: -15%));
+  background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: +5%), color.adjust($accent-color, $lightness: +15%));
   color: white;
+  // opacity: 0.5;
 }
 
 .product-tag {
@@ -175,7 +176,7 @@
   display: flex;
   margin-top: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -184,7 +185,7 @@
   padding: 12px 15px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 12px 0 0 12px;
+  border-radius: 4px 0 0 12px;
   font-size: 15px;
   transition: all 0.3s;
   
@@ -244,7 +245,7 @@
   padding: 12px 15px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 15px;
   transition: all 0.3s;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -310,7 +311,7 @@
     width: 20px;
     background-color: rgba(255, 255, 255, 0.8);
     border: 2px solid rgba(0, 0, 0, 0.1);
-    border-radius: 6px;
+    border-radius: 4px;
     transition: all 0.2s ease;
     
     &:after {
@@ -335,7 +336,7 @@
   background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: -15%));
   color: white;
   border: none;
-  border-radius: 30px;
+  border-radius: 4px;
   padding: 15px 20px;
   font-size: 16px;
   font-weight: 500;
@@ -384,6 +385,12 @@
   }
 }
 
+.actions-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
 // Results Container with Glass Style
 .results-container {
   margin-top: 30px;
@@ -415,7 +422,7 @@
 
 .results-content {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -467,7 +474,7 @@
     flex-direction: column;
     
     .custom-input {
-      border-radius: 12px 12px 0 0;
+      border-radius: 4px 12px 0 0;
     }
     
     .add-button {

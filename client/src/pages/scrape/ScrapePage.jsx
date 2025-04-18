@@ -270,6 +270,13 @@ const ScrapePage = () => {
 
       <div className="actions-container">
         <button
+          onClick={handleReset}
+          className="reset-button"
+          disabled={loading}
+        >
+          Reset to Defaults
+        </button>
+        <button
           onClick={handleScrape}
           disabled={
             loading ||
@@ -284,13 +291,6 @@ const ScrapePage = () => {
             : scrapeInProgress
             ? "Scraping in Progress..."
             : "Start Scraping Reddit Posts"}
-        </button>
-        <button
-          onClick={handleReset}
-          className="reset-button"
-          disabled={loading}
-        >
-          Reset to Defaults
         </button>
       </div>
     </div>

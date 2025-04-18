@@ -15,7 +15,7 @@ $transition-speed: 0.3s;
 
 .status-bar {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -122,7 +122,7 @@ $transition-speed: 0.3s;
   gap: 6px;
   padding: 6px 12px;
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  border-radius: 4px;
   transition: all 0.3s;
   
   &:hover {
@@ -146,7 +146,7 @@ $transition-speed: 0.3s;
 .toggle-details-button {
   background: rgba(255, 255, 255, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
+  border-radius: 4px;
   color: $accent-color;
   font-size: 14px;
   padding: 5px 12px;
@@ -209,7 +209,7 @@ $transition-speed: 0.3s;
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 14px;
   gap: 8px;
   transition: all 0.3s;
@@ -251,7 +251,7 @@ $transition-speed: 0.3s;
     background: rgba(99, 102, 241, 0.1);
     color: #6366f1;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 13px;
     transition: all 0.3s;
     border: 1px solid rgba(99, 102, 241, 0.2);
@@ -273,7 +273,7 @@ $transition-speed: 0.3s;
 .refresh-button {
   background: rgba(255, 255, 255, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  border-radius: 20px;
+  border-radius: 4px;
   color: $dark-text;
   padding: 8px 16px;
   font-size: 14px;
@@ -351,7 +351,7 @@ $transition-speed: 0.3s;
   gap: 12px;
   padding: 15px 20px;
   background: rgba(229, 62, 62, 0.05);
-  border-radius: 12px;
+  border-radius: 4px;
   border: 1px solid rgba(229, 62, 62, 0.2);
   color: $error-color;
   
@@ -365,7 +365,7 @@ $transition-speed: 0.3s;
     border: 1px solid rgba(229, 62, 62, 0.3);
     color: $error-color;
     padding: 6px 12px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 13px;
     cursor: pointer;
     transition: all 0.3s;

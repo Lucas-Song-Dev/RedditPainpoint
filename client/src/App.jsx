@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import "./App.scss";
 import Post from "./pages/postsPage/PostsPage";
-import Scrape from "./pages/scrape/ScrapePage";
 import AnalysisPage from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrape/ScrapePage";
 import RecomendationPage from "./pages/recomendationPage/Recomendation";
 import StatusBar from "./components/StatusBar";
+import Navbar from "./components/Navbar"; // Import the Navbar component
 import LoginPage from "./pages/auth/LoginPage";
 import { useAuth } from "./context/AuthContext";
 import { logoutUser } from "./api/api";
@@ -186,51 +186,12 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="logo-container">
-          <span className="app-logo">PP</span>
-          <span className="app-name">Painpoint Analyzer</span>
-        </div>
-        <nav className="nav-menu">
-          <ul>
-            <li
-              className={activePage === "home" ? "active" : ""}
-              onClick={() => setActivePage("home")}
-            >
-              <span className="menu-icon">🏠</span> Home
-            </li>
-            <li
-              className={activePage === "scrapepage" ? "active" : ""}
-              onClick={() => setActivePage("scrapepage")}
-            >
-              <span className="menu-icon">🔍</span> Scrape
-            </li>
-            <li
-              className={activePage === "post" ? "active" : ""}
-              onClick={() => setActivePage("post")}
-            >
-              <span className="menu-icon">📝</span> Posts
-            </li>
-            <li
-              className={activePage === "analysisPage" ? "active" : ""}
-              onClick={() => setActivePage("analysisPage")}
-            >
-              <span className="menu-icon">📊</span> Analysis
-            </li>
-            <li
-              className={activePage === "recomendationPage" ? "active" : ""}
-              onClick={() => setActivePage("recomendationPage")}
-            >
-              <span className="menu-icon">💡</span> Recommendation
-            </li>
-            {/* Logout button at the bottom of sidebar */}
-            <li className="logout-item" onClick={handleLogout}>
-              <span className="menu-icon">🚪</span> Logout
-            </li>
-          </ul>
-        </nav>
-      </div>
+      {/* Use the Navbar component */}
+      <Navbar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Content */}
       <div className="main-content">

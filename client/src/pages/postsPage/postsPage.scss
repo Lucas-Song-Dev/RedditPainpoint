@@ -12,7 +12,7 @@
   margin-bottom: 25px;
   padding: 15px 20px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -52,7 +52,7 @@
 .posts-header {
   margin-bottom: 30px;
   padding: 25px;
-  border-radius: 16px;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
@@ -166,7 +166,7 @@
 // Filters with glass styling
 .filters-container {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -212,7 +212,7 @@
   margin-bottom: 25px;
   padding: 15px 20px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -245,7 +245,7 @@
   background: rgba(229, 62, 62, 0.1);
   color: #e53e3e;
   border: 1px solid rgba(229, 62, 62, 0.2);
-  border-radius: 20px;
+  border-radius: 4px;
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 500;
@@ -268,7 +268,7 @@
   font-size: 14px;
   color: #4a5568;
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  border-radius: 4px;
   padding: 8px 16px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   margin: 0;
@@ -292,7 +292,7 @@
   align-items: center;
   gap: 8px;
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  border-radius: 4px;
   padding: 5px 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   
@@ -365,7 +365,7 @@
     .search-input {
     width: calc(100% - 80px);
       padding: 15px 20px 15px 50px;
-      border-radius: 30px;
+      border-radius: 4px;
       background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.6);
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -415,7 +415,7 @@
       
       input, select {
         padding: 12px 15px;
-        border-radius: 12px;
+        border-radius: 4px;
         background: rgba(255, 255, 255, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.6);
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -452,7 +452,7 @@
       background: linear-gradient(135deg, #4a90e2, #36f);
       color: white;
       border: none;
-      border-radius: 30px;
+      border-radius: 4px;
       padding: 12px 24px;
       font-size: 15px;
       font-weight: 500;
@@ -489,7 +489,7 @@
   background: rgba(229, 62, 62, 0.1);
   color: $error-color;
   padding: 15px 20px;
-  border-radius: 12px;
+  border-radius: 4px;
   margin-bottom: 20px;
   border-left: 4px solid $error-color;
   backdrop-filter: blur(5px);
@@ -545,7 +545,7 @@
 // Glass-style post cards
 .post-card {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -602,7 +602,7 @@
     background: rgba(74, 144, 226, 0.1);
     color: $accent-color;
     padding: 5px 12px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 14px;
     font-weight: 500;
     margin-left: 15px;
@@ -668,7 +668,7 @@
     color: white;
     text-decoration: none;
     padding: 8px 16px;
-    border-radius: 20px;
+    border-radius: 4px;
     transition: all 0.3s;
     background: linear-gradient(135deg, $accent-color, color.adjust($accent-color, $lightness: -10%));
     box-shadow: 0 4px 10px rgba(74, 144, 226, 0.2);
@@ -687,7 +687,7 @@
   .product-tag, .topic-tag, .pain-point-tag {
     display: inline-block;
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: 4px;
     font-size: 12px;
     font-weight: 500;
     margin-right: 6px;
@@ -724,7 +724,7 @@
   text-align: center;
   padding: 60px 40px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
