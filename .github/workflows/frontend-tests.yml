@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd client
-        npm ci
+        npm install --legacy-peer-deps
     
     - name: Run tests
       run: |
