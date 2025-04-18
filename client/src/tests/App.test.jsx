@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from '../App';
 
-describe('App', () => {
+describe('App Component', () => {
   it('renders without crashing', () => {
-    render(<App />);
+    const { container } = render(<App />);
+    expect(container).toBeTruthy();
   });
 
   it('renders main content', () => {
@@ -13,7 +14,6 @@ describe('App', () => {
     expect(mainContent).toBeInTheDocument();
   });
 
-  // Add more specific tests based on your app's functionality
   it('renders navigation elements', () => {
     render(<App />);
     const navElements = screen.getAllByRole('navigation');
