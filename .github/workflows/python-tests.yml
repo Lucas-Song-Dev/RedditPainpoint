@@ -29,6 +29,13 @@ jobs:
           pip install pytest
 
       - name: Run tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/test_db
+          REDDIT_CLIENT_ID: test_client_id
+          REDDIT_CLIENT_SECRET: test_client_secret
+          OPENAI_API_KEY: test_api_key
+          JWT_SECRET_KEY: test_jwt_secret
+          SESSION_SECRET: test_session_secret
         run: |
           cd server
           pytest tests/ -v
