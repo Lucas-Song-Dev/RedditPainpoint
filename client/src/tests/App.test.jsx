@@ -1,20 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import App from '../App';
 
-// Mock the useAuth hook directly
-vi.mock('../App', async () => {
-  const actual = await vi.importActual('../App');
-  return {
-    ...actual,
-    useAuth: () => ({
-      isAuthenticated: false,
-      isLoading: false,
-      login: vi.fn(),
-      logout: vi.fn(),
-    }),
-  };
-});
+// Mock useAuth before importing App
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+// Import App after mocking
+import App from '../App';
 
 describe('App Component', () => {
   it('renders without crashing', () => {
