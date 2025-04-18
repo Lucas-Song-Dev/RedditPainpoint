@@ -1,7 +1,7 @@
 import pytest
-from app import app
+from flask import Flask
 
-def test_app_creation():
+def test_app_creation(app):
     """Test that the app is created correctly."""
     assert app is not None
     assert app.config['TESTING'] is True

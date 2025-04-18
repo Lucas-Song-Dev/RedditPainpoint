@@ -1,19 +1,32 @@
 import pytest
-from app import app
+from app import app, api
+from flask import Flask
 import os
 
-@pytest.fixture
-def client():
-    """Create a test client for the app."""
-    # Use test configuration
+@pytest.fixture(scope='session')
+def app():
+    """Create a test Flask app."""
+    app = Flask(__name__)
     app.config.update({
         'TESTING': True,
         'SECRET_KEY': 'test-secret-key',
         'MONGODB_URI': 'mongodb://localhost:27017/test_db'
     })
     
-    with app.test_client() as client:
-        yield client
+    # Initialize the API
+    from flask_restful import Api
+    api = Api(app)
+    
+    # Import and register routes
+    from api import initialize_routes
+    initialize_routes(api)
+    
+    return app
+
+@pytest.fixture
+def client(app):
+    """Create a test client for the app."""
+    return app.test_client()
 
 @pytest.fixture
 def test_user():
