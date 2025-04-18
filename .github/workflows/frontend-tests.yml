@@ -20,6 +20,11 @@ jobs:
         cache: 'npm'
         cache-dependency-path: 'client/package-lock.json'
     
+    - name: Clean up old config
+      run: |
+        cd client
+        rm -f jest.config.js
+    
     - name: Install dependencies
       run: |
         cd client
@@ -28,7 +33,7 @@ jobs:
     - name: Run tests
       run: |
         cd client
-        npm test -- --watchAll=false
+        npm test -- --watchAll=false --config=jest.config.cjs
     
     - name: Build
       run: |
