@@ -20,6 +20,16 @@ OPENAI_API_KEY=your_openai_api_key
 JWT_SECRET_KEY=your_jwt_secret_key
 MONGODB_URI=your_mongodb_connection_string
 
+## VENV python setup
+
+```
+
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+```
+
 ## API Endpoints
 
 ### Authentication
