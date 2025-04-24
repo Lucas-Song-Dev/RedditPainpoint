@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { triggerScrape, fetchStatus } from "@/api/api.js";
 import { useNotification } from "@/context/NotificationContext";
-import "./ScrapePage.scss";
+import "./scrapePage.scss";
 import PageHeader from "@/components/PageHeader/PageHeader";
 import LoadingState from "@/components/LoadingState/LoadingState";
 
@@ -158,7 +158,7 @@ const ScrapePage = () => {
 
   return (
     <div className="scrape-page">
-      <PageHeader 
+      <PageHeader
         title="Scrape Reddit"
         description="Scrape posts from Reddit for analysis"
       />

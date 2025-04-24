@@ -4,12 +4,12 @@ import Post from "./pages/postsPage/PostsPage";
 import AnalysisPage from "./pages/analysisPage/AnalysisPage";
 import ScrapePage from "./pages/scrapePage/ScrapePage";
 import RecomendationPage from "./pages/recommendationPage/RecomendationPage";
-import StatusBar from "./components/StatusBar";
-import Navbar from "./components/NavBar"; // Import the Navbar component
+import StatusBar from "./components/StatusBar/StatusBar";
+import NavBar from "./components/NavBar/NavBar";
 import LoginPage from "./pages/auth/LoginPage";
 import { useAuth } from "./context/AuthContext";
 import { logoutUser } from "./api/api";
-import Notification from "./components/Notification";
+import Notification from "./components/Notification/Notification";
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -187,7 +187,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Use the Navbar component */}
-      <Navbar
+      <NavBar
         activePage={activePage}
         setActivePage={setActivePage}
         handleLogout={handleLogout}
