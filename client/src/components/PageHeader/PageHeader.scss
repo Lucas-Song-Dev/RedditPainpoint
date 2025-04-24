@@ -1,0 +1,55 @@
+.page-header {
+  margin-bottom: 30px;
+  padding: 0 25px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  transition: all $transition-speed;
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  }
+  
+  // Gradient animation
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(to right, transparent, $accent-color, transparent);
+    animation: shimmer 3s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { opacity: 0; transform: translateX(-100%); }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(100%); }
+  }
+
+  h2 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 0px;
+    color: $dark-text;
+    position: relative;
+    display: inline-block;
+  }
+
+  p {
+    color: $medium-text;
+    font-size: 16px;
+    line-height: 1.6;
+    max-width: 80%;
+    margin: 0;
+    margin-bottom: 20px;
+  }
+} 

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { triggerScrape, fetchStatus } from "@/api/api.js";
 import { useNotification } from "@/context/NotificationContext";
 import "./ScrapePage.scss";
+import PageHeader from "@/components/PageHeader/PageHeader";
+import LoadingState from "@/components/LoadingState/LoadingState";
 
 const ScrapePage = () => {
   const [loading, setLoading] = useState(false);
@@ -156,7 +158,10 @@ const ScrapePage = () => {
 
   return (
     <div className="scrape-page">
-      <h1 className="page-title">Reddit Scraping Tool</h1>
+      <PageHeader 
+        title="Scrape Reddit"
+        description="Scrape posts from Reddit for analysis"
+      />
 
       <div className="cards-container">
         {/* Subreddits Section */}

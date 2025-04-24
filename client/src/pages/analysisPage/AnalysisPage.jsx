@@ -1,9 +1,13 @@
-// OpenAIAnalysis.jsx
-import { useEffect, useState } from "react";
-import { fetchOpenAIAnalysis } from "@/api/api.js";
+// AnalysisPage.jsx
+import React, { useEffect, useState } from "react";
+import { fetchOpenAIAnalysis } from "@/api/api";
 import "./analysisPage.scss";
+import PageHeader from "@/components/PageHeader/PageHeader";
+import SearchBar from "@/components/SearchBar/SearchBar";
+import FilterControls from "@/components/FilterControls/FilterControls";
+import LoadingState from "@/components/LoadingState/LoadingState";
 
-const OpenAIAnalysis = () => {
+const AnalysisPage = () => {
   // Load initial products from localStorage or use default "Cursor"
   const [analysis, setAnalysis] = useState([]);
   const [filteredAnalysis, setFilteredAnalysis] = useState([]);
@@ -221,10 +225,10 @@ const OpenAIAnalysis = () => {
 
   return (
     <div className="analysis-container">
-      <div className="analysis-header">
-        <h2>OpenAI Analysis</h2>
-        <p>AI-generated insights about pain points from Reddit discussions</p>
-      </div>
+      <PageHeader 
+        title="Analysis"
+        description="Analyze pain points and insights from Reddit posts"
+      />
 
       {/* Products Selection */}
       <div className="products-section">
@@ -485,4 +489,4 @@ const OpenAIAnalysis = () => {
   );
 };
 
-export default OpenAIAnalysis;
+export default AnalysisPage;

@@ -1,9 +1,13 @@
-// Posts.jsx
+// PostsPage.jsx
 import { useEffect, useState, useCallback } from "react";
-import { fetchPosts } from "@/api/api.js";
+import { fetchPosts } from "@/api/api";
 import "./postsPage.scss";
+import PageHeader from "@/components/PageHeader/PageHeader";
+import SearchBar from "@/components/SearchBar/SearchBar";
+import FilterControls from "@/components/FilterControls/FilterControls";
+import LoadingState from "@/components/LoadingState/LoadingState";
 
-const Posts = () => {
+const PostsPage = () => {
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -141,10 +145,10 @@ const Posts = () => {
 
   return (
     <div className="posts-container">
-      <div className="posts-header">
-        <h2>Scraped Posts</h2>
-        <p>View and filter the most recent scraped posts from Reddit</p>
-      </div>
+      <PageHeader 
+        title="Scraped Posts"
+        description="View and filter the most recent scraped posts from Reddit"
+      />
 
       {/* Unified Filters Section */}
       <div className="filters-container">
@@ -506,4 +510,4 @@ const Posts = () => {
   );
 };
 
-export default Posts;
+export default PostsPage;

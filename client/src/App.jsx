@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import "./App.scss";
 import Post from "./pages/postsPage/PostsPage";
 import AnalysisPage from "./pages/analysisPage/AnalysisPage";
-import ScrapePage from "./pages/scrape/ScrapePage";
-import RecomendationPage from "./pages/recomendationPage/Recomendation";
+import ScrapePage from "./pages/scrapePage/ScrapePage";
+import RecomendationPage from "./pages/recommendationPage/RecomendationPage";
 import StatusBar from "./components/StatusBar";
 import Navbar from "./components/NavBar"; // Import the Navbar component
 import LoginPage from "./pages/auth/LoginPage";
