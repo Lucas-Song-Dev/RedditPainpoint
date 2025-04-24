@@ -1,18 +1,16 @@
-import React from 'react';
-import './FilterControls.scss';
+import React from "react";
+import "./filterControls.scss";
 
 const FilterControls = ({
   filters,
   onFilterChange,
   onClearFilters,
   showClearButton = true,
-  children
+  children,
 }) => {
   return (
     <div className="filter-controls">
-      <div className="filter-grid">
-        {children}
-      </div>
+      <div className="filter-grid">{children}</div>
       {showClearButton && (
         <button
           className="clear-filters-button"
@@ -26,4 +24,4 @@ const FilterControls = ({
   );
 };
 
-export default FilterControls; 
+export default FilterControls;

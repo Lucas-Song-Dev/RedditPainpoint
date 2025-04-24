@@ -1,5 +1,5 @@
 import React from 'react';
-import './SearchBar.scss';
+import './searchBar.scss';
 
 const SearchBar = ({ value, onChange, placeholder = "Search..." }) => {
   return (

@@ -1,5 +1,5 @@
-import React from 'react';
-import './LoadingState.scss';
+import React from "react";
+import "./loadingState.scss";
 
 const LoadingState = ({ message = "Loading..." }) => {
   return (
@@ -14,4 +14,4 @@ const LoadingState = ({ message = "Loading..." }) => {
   );
 };
 
-export default LoadingState; 
+export default LoadingState;
