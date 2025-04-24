@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { triggerScrape, fetchStatus } from "@/api/api.js";
 import { useNotification } from "@/context/NotificationContext";
-import "./scrapePage.scss";
+import "@/pages/scrapePage/scrapePage.scss";
 import PageHeader from "@/components/PageHeader/PageHeader";
 import LoadingState from "@/components/LoadingState/LoadingState";
 
