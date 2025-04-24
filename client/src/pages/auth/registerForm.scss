@@ -166,7 +166,7 @@
       }
       
       &:disabled {
-        background: linear-gradient(135deg, lighten($secondary-color, 20%), lighten($secondary-color, 15%));
+        background: linear-gradient(135deg, color.adjust($secondary-color, $lightness: 20%), color.adjust($secondary-color, $lightness: 15%));
         cursor: not-allowed;
         box-shadow: none;
       }
