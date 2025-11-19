@@ -6,11 +6,11 @@ import {
 } from "@/api/api.js";
 import "./recommendation.scss";
 
-const Recommendations = () => {
+const Recommendations = ({ productData = null }) => {
   // State management
-  const [recommendations, setRecommendations] = useState([]);
-  const [filteredRecommendations, setFilteredRecommendations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState(productData ? [productData] : []);
+  const [filteredRecommendations, setFilteredRecommendations] = useState(productData ? [productData] : []);
+  const [loading, setLoading] = useState(!productData);
   const [error, setError] = useState(null);
   const [severityFilters, setSeverityFilters] = useState({
     low: true,
@@ -96,7 +96,9 @@ const Recommendations = () => {
 
   // Initial fetch on component mount
   useEffect(() => {
-    fetchData();
+    if (!productData) {
+      fetchData();
+    }
   }, []);
 
   // Filter and sort recommendations based on criteria

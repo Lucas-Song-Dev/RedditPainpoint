@@ -9,15 +9,20 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already authenticated by making a request
-    // to an endpoint that requires authentication
+    // Check if user is already authenticated by verifying token exists
+    // and making a lightweight auth check
     const checkAuth = async () => {
       try {
+        // Try to fetch status - if it succeeds, user is authenticated
+        // The token should be in cookies (httponly) set by the server
         const response = await fetchStatus();
-        // If we get a successful response, user is authenticated
-        setIsAuthenticated(true);
+        if (response && response.status === "success") {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+        }
       } catch (error) {
-        // If we get an error, user is not authenticated
+        // If we get an error (401/403), user is not authenticated
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
@@ -42,4 +47,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

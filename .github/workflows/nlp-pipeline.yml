@@ -1,0 +1,79 @@
+name: NLP Pipeline - Automated Analysis
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/advanced_nlp_analyzer.py'
+      - 'server/api.py'
+
+jobs:
+  nlp-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd server
+        pip install -r requirements.txt
+    
+    - name: Download NLTK data
+      run: |
+        python -c "import nltk; nltk.download('punkt'); nltk.download('vader_lexicon'); nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('averaged_perceptron_tagger')"
+    
+    - name: Run NLP Pipeline Tests
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      run: |
+        cd server
+        python -m pytest tests/test_nlp_pipeline.py -v
+    
+    - name: Process NLP Analysis
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      run: |
+        cd server
+        python scripts/run_nlp_pipeline.py
+    
+    - name: Verify Results
+      env:
+        MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      run: |
+        cd server
+        python scripts/verify_nlp_results.py
+    
+    - name: Generate Report
+      if: always()
+      run: |
+        cd server
+        python scripts/generate_nlp_report.py > nlp_report.txt
+        cat nlp_report.txt
+    
+    - name: Upload Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: nlp-analysis-results
+        path: |
+          server/nlp_report.txt
+          server/nlp_metrics.json
+

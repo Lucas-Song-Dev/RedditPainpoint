@@ -225,30 +225,34 @@ class MongoDBStore:
     
     def save_openai_analysis(self, product, analysis):
         """Save OpenAI analysis to database"""
-        # Fix the comparison with None instead of bool testing
         if self.db is None:
             logger.error("Cannot save OpenAI analysis: Database connection not established")
             return False
         
         try:
+            # Normalize product name for consistent storage
+            product_normalized = product.strip().lower()
+            
             # Prepare analysis document
             analysis_data = {
-                "product": product.strip().lower(),
+                "product": product_normalized,
                 "analysis": analysis,
                 "created_at": datetime.utcnow()
             }
             
-            # Use product name as ID
-            analysis_data['_id'] = product
+            # Use normalized product name as ID for consistency
+            analysis_data['_id'] = product_normalized
             
             # Insert or update analysis
             result = self.db.openai_analysis.update_one(
-                {"_id": product},
+                {"_id": product_normalized},
                 {"$set": analysis_data},
                 upsert=True
             )
             
-            # Update local cache
+            logger.info(f"Saved OpenAI analysis for {product}")
+            
+            # Update local cache with original product name as key
             self.openai_analyses[product] = analysis
             
             return True

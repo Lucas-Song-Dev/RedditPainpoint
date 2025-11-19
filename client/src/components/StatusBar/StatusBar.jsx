@@ -36,6 +36,34 @@ const StatusBar = () => {
     }, 15000);
 
     return () => clearInterval(intervalId);
+  }, []);
+
+  // Listen for scrape started event to refresh status immediately
+  useEffect(() => {
+    const handleScrapeStarted = () => {
+      // Refresh status when a scrape is started
+      getStatus();
+    };
+
+    window.addEventListener('scrapeStarted', handleScrapeStarted);
+
+    return () => {
+      window.removeEventListener('scrapeStarted', handleScrapeStarted);
+    };
+  }, []);
+
+  // Refresh status immediately when scrape_in_progress changes to true
+  useEffect(() => {
+    if (status?.scrape_in_progress) {
+      // Set up polling every 15 seconds while scrape is in progress
+      const intervalId = setInterval(() => {
+        getStatus();
+      }, 15000);
+
+      return () => {
+        clearInterval(intervalId);
+      };
+    }
   }, [status?.scrape_in_progress]);
 
   const toggleExpanded = () => {

@@ -27,8 +27,9 @@ const LoginPage = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       setError(
+        err.message ||
         err.response?.data?.message ||
-          "Authentication failed. Please check your credentials."
+        "Authentication failed. Please check your credentials."
       );
     } finally {
       setIsLoading(false);
@@ -36,11 +37,13 @@ const LoginPage = ({ onLoginSuccess }) => {
   };
 
   // Handle successful registration
-  const handleRegisterSuccess = () => {
+  const handleRegisterSuccess = (registeredUsername) => {
     setShowRegister(false);
     setError("");
-    // Optional: auto-fill the login form with the registered username
-    setUsername(username);
+    // Auto-fill the login form with the registered username
+    if (registeredUsername) {
+      setUsername(registeredUsername);
+    }
     setPassword("");
   };
 

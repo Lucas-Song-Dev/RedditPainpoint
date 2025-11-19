@@ -1,8 +1,14 @@
 import axios from "axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+// Get API base URL from environment, with fallback for local development
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 const DEFAULT_LIMIT = 100;
 const DEFAULT_TIME_FILTER = "month";
+
+// Log API base URL in development to help debug
+if (import.meta.env.DEV) {
+  console.log("API Base URL:", API_BASE);
+}
 
 /**
  * Trigger a scraping job on Reddit
@@ -31,13 +37,15 @@ export const triggerScrape = async (options) => {
     use_openai,
   };
 
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.post(`${API_BASE}/scrape`, payload, {
       withCredentials: true,
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Scraping failed");
+    }
     throw err;
   }
 };
@@ -48,7 +56,6 @@ export const triggerScrape = async (options) => {
  * @returns {Promise<Object>}
  */
 export const fetchPosts = async (filters = {}) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/posts`, {
       params: filters,
@@ -56,6 +63,9 @@ export const fetchPosts = async (filters = {}) => {
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch posts");
+    }
     throw err;
   }
 };
@@ -69,13 +79,16 @@ export const fetchPosts = async (filters = {}) => {
  * }} userData
  */
 export const registerUser = async (userData) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.post(`${API_BASE}/register`, userData, {
       withCredentials: true,
     });
     return res.data;
   } catch (err) {
+    // Return error response data if available, otherwise throw
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Registration failed");
+    }
     throw err;
   }
 };
@@ -88,13 +101,16 @@ export const registerUser = async (userData) => {
  * }} credentials
  */
 export const loginUser = async (credentials) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.post(`${API_BASE}/login`, credentials, {
       withCredentials: true, // Important for cookies to be received
     });
     return res.data;
   } catch (err) {
+    // Return error response data if available, otherwise throw
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Login failed");
+    }
     throw err;
   }
 };
@@ -104,7 +120,6 @@ export const loginUser = async (credentials) => {
  * @returns {Promise<Object>}
  */
 export const logoutUser = async () => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.post(
       `${API_BASE}/logout`,
@@ -115,6 +130,11 @@ export const logoutUser = async () => {
     );
     return res.data;
   } catch (err) {
+    // Even if logout fails on server, we should still clear local state
+    // Return error response data if available, otherwise throw
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Logout failed");
+    }
     throw err;
   }
 };
@@ -126,7 +146,6 @@ export const logoutUser = async () => {
  * }} options
  */
 export const fetchSavedRecommendations = async ({ products }) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     let params = {};
     if (Array.isArray(products) && products.length > 0) {
@@ -143,6 +162,9 @@ export const fetchSavedRecommendations = async ({ products }) => {
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch recommendations");
+    }
     throw err;
   }
 };
@@ -154,7 +176,6 @@ export const fetchSavedRecommendations = async ({ products }) => {
  * }} options
  */
 export const generateRecommendations = async ({ products }) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const requestData = {
       products: Array.isArray(products) ? products : [],
@@ -165,6 +186,9 @@ export const generateRecommendations = async ({ products }) => {
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to generate recommendations");
+    }
     throw err;
   }
 };
@@ -177,7 +201,6 @@ export const generateRecommendations = async ({ products }) => {
  * @param {number} [filters.min_severity]
  */
 export const fetchPainPoints = async (filters = {}) => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/pain-points`, {
       params: filters,
@@ -185,6 +208,9 @@ export const fetchPainPoints = async (filters = {}) => {
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch pain points");
+    }
     throw err;
   }
 };
@@ -196,8 +222,6 @@ export const fetchPainPoints = async (filters = {}) => {
  * }} options
  */
 export const fetchOpenAIAnalysis = async ({ product }) => {
-  console.log("🚀 ~ fetchOpenAIAnalysis ~ product:", product);
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/openai-analysis`, {
       params: { products: product },
@@ -205,6 +229,48 @@ export const fetchOpenAIAnalysis = async ({ product }) => {
     });
     return res.data;
   } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch OpenAI analysis");
+    }
+    throw err;
+  }
+};
+
+/**
+ * Get list of all products that have posts (whether analyzed or not)
+ */
+export const fetchAllProducts = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/all-products`, {
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch all products");
+    }
+    throw err;
+  }
+};
+
+/**
+ * Run OpenAI analysis for a specific product
+ * @param {{ product: string }} options
+ */
+export const runAnalysis = async ({ product }) => {
+  try {
+    const res = await axios.post(
+      `${API_BASE}/run-analysis`,
+      { product },
+      {
+        withCredentials: true,
+      }
+    );
+    return res.data;
+  } catch (err) {
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to run analysis");
+    }
     throw err;
   }
 };
@@ -213,13 +279,19 @@ export const fetchOpenAIAnalysis = async ({ product }) => {
  * Get scraper/status/connection info
  */
 export const fetchStatus = async () => {
-  // eslint-disable-next-line no-useless-catch
   try {
     const res = await axios.get(`${API_BASE}/status`, {
       withCredentials: true,
     });
     return res.data;
   } catch (err) {
+    // Don't throw for 401/403 - let AuthContext handle it
+    if (err.response?.status === 401 || err.response?.status === 403) {
+      throw err;
+    }
+    if (err.response?.data) {
+      throw new Error(err.response.data.message || "Failed to fetch status");
+    }
     throw err;
   }
 };

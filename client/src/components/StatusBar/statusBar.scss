@@ -1,35 +1,22 @@
-// StatusBar.scss - Modern Glass UI Version
-
-// Variables
-$glass-bg: rgba(255, 255, 255, 0.2);
-$glass-border: rgba(255, 255, 255, 0.3);
-$glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-$accent-color: #4a90e2;
-$accent-glow: rgba(74, 144, 226, 0.4);
-$error-color: #e53e3e;
-$success-color: #38a169;
-$dark-text: #2c3e50;
-$medium-text: #4a5568;
-$light-text: #f8f9fa;
-$transition-speed: 0.3s;
+// StatusBar.scss - Terminal Theme Version
+@use '../../styles/variables' as *;
 
 .status-bar {
-  background: rgba(255, 255, 255, 0.2);
+  background: $terminal-panel;
   border-radius: 4px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid $terminal-border;
   margin-bottom: 25px;
   overflow: hidden;
   transition: all 0.3s;
   
   &:hover {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 30px rgba(0, 255, 0, 0.2);
+    border-color: $terminal-text-bright;
   }
   
   &.scrape-active {
-    border-left: 4px solid $accent-color;
+    border-left: 4px solid $terminal-text-bright;
     
     &::before {
       content: '';
@@ -38,7 +25,7 @@ $transition-speed: 0.3s;
       left: 0;
       right: 0;
       height: 3px;
-      background: linear-gradient(to right, transparent, $accent-color, transparent);
+      background: linear-gradient(to right, transparent, $terminal-border, transparent);
       animation: shimmerStatus 3s infinite;
     }
     
@@ -58,9 +45,10 @@ $transition-speed: 0.3s;
   cursor: pointer;
   transition: all 0.3s;
   position: relative;
+  background: $terminal-panel;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: lighten($terminal-panel, 5%);
   }
   
   @media (max-width: 767px) {
@@ -91,7 +79,7 @@ $transition-speed: 0.3s;
   }
   
   .status-text {
-    color: $dark-text;
+    color: $terminal-text;
     font-size: 16px;
   }
 }
@@ -108,7 +96,7 @@ $transition-speed: 0.3s;
 .status-quick-info {
   display: flex;
   gap: 20px;
-  color: $medium-text;
+  color: $terminal-text-dim;
   
   @media (max-width: 767px) {
     width: 100%;
@@ -121,42 +109,46 @@ $transition-speed: 0.3s;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.3);
+  background: $terminal-bg-dark;
+  border: 1px solid $terminal-border-dim;
   border-radius: 4px;
   transition: all 0.3s;
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 255, 0, 0.2);
+    border-color: $terminal-border;
   }
   
   .stat-label {
     font-weight: 500;
-    color: $dark-text;
+    color: $terminal-text;
     font-size: 14px;
   }
   
   .stat-value {
-    color: $accent-color;
+    color: $terminal-text-bright;
     font-weight: 600;
     font-size: 14px;
   }
 }
 
 .toggle-details-button {
-  background: rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: $terminal-bg-dark;
+  border: 1px solid $terminal-border;
   border-radius: 4px;
-  color: $accent-color;
+  color: $terminal-text;
   font-size: 14px;
   padding: 5px 12px;
   cursor: pointer;
   transition: all 0.3s;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.4);
+    background: lighten($terminal-bg-dark, 5%);
+    border-color: $terminal-text-bright;
+    color: $terminal-text-bright;
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 255, 0, 0.2);
   }
   
   &:active {
@@ -166,7 +158,8 @@ $transition-speed: 0.3s;
 
 .status-details {
   padding: 5px 25px 25px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid $terminal-border;
+  background: $terminal-bg-dark;
   animation: fadeIn 0.3s ease;
   
   @keyframes fadeIn {
@@ -178,7 +171,7 @@ $transition-speed: 0.3s;
     font-size: 16px;
     font-weight: 600;
     margin: 20px 0 12px;
-    color: $dark-text;
+    color: $terminal-text;
     position: relative;
     display: inline-block;
     
@@ -189,7 +182,7 @@ $transition-speed: 0.3s;
       left: 0;
       width: 30px;
       height: 2px;
-      background: $accent-color;
+      background: $terminal-border;
       transition: width 0.3s;
     }
     
@@ -220,15 +213,15 @@ $transition-speed: 0.3s;
   }
   
   &.status-connected {
-    background: rgba(56, 161, 105, 0.1);
-    color: $success-color;
-    border: 1px solid rgba(56, 161, 105, 0.2);
+    background: rgba(0, 255, 0, 0.1);
+    color: $terminal-success;
+    border: 1px solid $terminal-border;
   }
   
   &.status-error {
-    background: rgba(229, 62, 62, 0.1);
-    color: $error-color;
-    border: 1px solid rgba(229, 62, 62, 0.2);
+    background: rgba(255, 0, 0, 0.1);
+    color: $terminal-error;
+    border: 1px solid $terminal-error;
   }
   
   .api-name {
@@ -242,24 +235,54 @@ $transition-speed: 0.3s;
   gap: 20px;
 }
 
+.status-stat-detailed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: $terminal-bg-dark;
+  border: 1px solid $terminal-border-dim;
+  border-radius: 4px;
+  transition: all 0.3s;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 255, 0, 0.2);
+    border-color: $terminal-border;
+  }
+  
+  .stat-label {
+    font-weight: 500;
+    color: $terminal-text;
+    font-size: 14px;
+  }
+  
+  .stat-value {
+    color: $terminal-text-bright;
+    font-weight: 600;
+    font-size: 16px;
+  }
+}
+
 .subreddit-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   
   .subreddit-tag {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background: $terminal-bg-dark;
+    color: $terminal-text;
     padding: 6px 12px;
     border-radius: 4px;
     font-size: 13px;
     transition: all 0.3s;
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    border: 1px solid $terminal-border-dim;
     
     &:hover {
-      background: rgba(99, 102, 241, 0.2);
+      background: lighten($terminal-bg-dark, 5%);
+      border-color: $terminal-border;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(99, 102, 241, 0.15);
+      box-shadow: 0 4px 8px rgba(0, 255, 0, 0.2);
     }
   }
 }
@@ -271,19 +294,21 @@ $transition-speed: 0.3s;
 }
 
 .refresh-button {
-  background: rgba(255, 255, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: $terminal-bg-dark;
+  border: 1px solid $terminal-border;
   border-radius: 4px;
-  color: $dark-text;
+  color: $terminal-text;
   padding: 8px 16px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.4);
+    background: lighten($terminal-bg-dark, 5%);
+    border-color: $terminal-text-bright;
+    color: $terminal-text-bright;
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 10px rgba(0, 255, 0, 0.2);
   }
   
   &:active {
@@ -301,7 +326,7 @@ $transition-speed: 0.3s;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: $medium-text;
+  color: $terminal-text-dim;
   font-style: italic;
   font-size: 15px;
 }
@@ -316,7 +341,7 @@ $transition-speed: 0.3s;
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: $accent-color;
+    background-color: $terminal-text-bright;
     animation: bounce 1.5s infinite ease-in-out;
     
     &:nth-child(1) {
@@ -350,10 +375,10 @@ $transition-speed: 0.3s;
   align-items: center;
   gap: 12px;
   padding: 15px 20px;
-  background: rgba(229, 62, 62, 0.05);
+  background: rgba(255, 0, 0, 0.1);
   border-radius: 4px;
-  border: 1px solid rgba(229, 62, 62, 0.2);
-  color: $error-color;
+  border: 1px solid $terminal-error;
+  color: $terminal-error;
   
   .error-icon {
     font-size: 18px;
@@ -361,9 +386,9 @@ $transition-speed: 0.3s;
   
   .retry-button {
     margin-left: auto;
-    background: rgba(229, 62, 62, 0.1);
-    border: 1px solid rgba(229, 62, 62, 0.3);
-    color: $error-color;
+    background: $terminal-bg-dark;
+    border: 1px solid $terminal-error;
+    color: $terminal-error;
     padding: 6px 12px;
     border-radius: 4px;
     font-size: 13px;
@@ -371,9 +396,11 @@ $transition-speed: 0.3s;
     transition: all 0.3s;
     
     &:hover {
-      background: rgba(229, 62, 62, 0.2);
+      background: rgba(255, 0, 0, 0.2);
+      border-color: $terminal-text-bright;
+      color: $terminal-text-bright;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(229, 62, 62, 0.15);
+      box-shadow: 0 4px 8px rgba(255, 0, 0, 0.3);
     }
     
     &:active {

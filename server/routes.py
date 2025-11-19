@@ -3,7 +3,7 @@ from flask_restful import Api
 from api import (
     Register, Login, Logout, ScrapePosts, Recommendations,
     GetPainPoints, GetPosts, GetStatus, ResetScrapeStatus,
-    GetOpenAIAnalysis
+    GetOpenAIAnalysis, GetAllProducts, RunAnalysis
 )
 
 # Create blueprint for main routes
@@ -21,8 +21,10 @@ def initialize_routes(api):
     api.add_resource(Logout, '/api/logout')
     api.add_resource(ScrapePosts, '/api/scrape')
     api.add_resource(Recommendations, '/api/recommendations')
-    api.add_resource(GetPainPoints, '/api/painpoints')
+    api.add_resource(GetPainPoints, '/api/pain-points')
     api.add_resource(GetPosts, '/api/posts')
     api.add_resource(GetStatus, '/api/status')
     api.add_resource(ResetScrapeStatus, '/api/reset-status')
     api.add_resource(GetOpenAIAnalysis, '/api/openai-analysis')
+    api.add_resource(GetAllProducts, '/api/all-products')
+    api.add_resource(RunAnalysis, '/api/run-analysis')

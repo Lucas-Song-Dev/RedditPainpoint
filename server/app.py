@@ -1,10 +1,11 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from flask_restful import Api
 import nltk
 from dotenv import load_dotenv
+from security import secure_headers, validate_jwt_secret
 
 # Load environment variables
 load_dotenv()
@@ -26,8 +27,14 @@ logging.getLogger("pymongo.topology").setLevel(logging.WARNING)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev_secret_key")
 
-# Enable CORS
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173", "supports_credentials": True}})
+# Enable CORS with security restrictions
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+CORS(app, resources={r"/api/*": {
+    "origins": allowed_origins,
+    "supports_credentials": True,
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})
 
 # Initialize Flask-RESTful API
 api = Api(app)
@@ -43,5 +50,28 @@ data_store.update_metadata(scrape_in_progress=False)
 # Import and register routes
 from routes import initialize_routes
 initialize_routes(api)
+
+# Validate security configuration
+if not validate_jwt_secret():
+    logger.warning("JWT_SECRET_KEY validation failed - check your configuration")
+
+# Add request logging
+@app.before_request
+def log_request_info():
+    """Log all incoming requests for debugging"""
+    print(f"\n[REQUEST] {request.method} {request.path}")
+    print(f"[REQUEST] Headers: {dict(request.headers)}")
+    if request.is_json:
+        print(f"[REQUEST] JSON Body: {request.get_json()}")
+    elif request.form:
+        print(f"[REQUEST] Form Data: {dict(request.form)}")
+    elif request.args:
+        print(f"[REQUEST] Query Params: {dict(request.args)}")
+    logger.debug(f"Request: {request.method} {request.path}")
+
+# Add security headers to all responses
+@app.after_request
+def add_security_headers(response):
+    return secure_headers(response)
 
 logger.info("App initialized successfully")

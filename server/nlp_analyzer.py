@@ -144,32 +144,25 @@ class NLPAnalyzer:
         Returns:
             dict: Dictionary of pain point categories and their frequencies
         """
-        print("Starting categorize_pain_points...")
-        print(f"Number of posts: {len(posts)}")
-        print(f"Products to match: {products}")
+        logger.info(f"Starting categorize_pain_points for {len(posts)} posts")
         
         pain_point_map = {}
         
         for idx, post in enumerate(posts):
-            print(f"\nProcessing post {idx + 1}/{len(posts)} — ID: {post.id}")
-            print(f"Title: {post.title}")
-            print(f"Content: {post.content}")
+            if (idx + 1) % 100 == 0:
+                logger.info(f"Processing post {idx + 1}/{len(posts)}")
             
             # Analyze sentiment
             post.sentiment = self.analyze_sentiment(f"{post.title} {post.content}")
-            print(f"Sentiment score: {post.sentiment}")
             
             # Identify pain points
             post.pain_points = self.identify_pain_points(post)
-            print(f"Identified pain points: {post.pain_points}")
             
             # Get all matching products for this post
             matching_products = self.get_product_from_post(post, products)
-            print(f"Matching products: {matching_products}")
             
             # Extract topics/keywords
             post.topics = self.extract_keywords(f"{post.title} {post.content}")
-            print(f"Extracted topics: {post.topics}")
             
             # Only process posts that mention pain points and matched products
             if post.pain_points and matching_products:
@@ -177,15 +170,13 @@ class NLPAnalyzer:
                     try:
                         category, indicator = pain_point.split(":", 1)
                     except ValueError:
-                        print(f"Skipping malformed pain point: {pain_point}")
+                        logger.warning(f"Skipping malformed pain point: {pain_point}")
                         continue
 
                     base_key = f"{category}:{indicator}"
-                    print(f"Base pain point key: {base_key}")
                     
                     for product in matching_products:
                         product_key = f"{base_key}:{product}"
-                        print(f"Product-specific pain point key: {product_key}")
                         
                         if product_key not in pain_point_map:
                             description = f"Issues with {category} described as '{indicator}' in {product}"
@@ -194,31 +185,22 @@ class NLPAnalyzer:
                                 description=description,
                                 product=product
                             )
-                            print(f"Initialized new PainPoint object for key: {product_key}")
                         
                         pain_point_obj = pain_point_map[product_key]
                         pain_point_obj.frequency += 1
                         pain_point_obj.related_posts.append(post.id)
                         
-                        print(f"Updated frequency: {pain_point_obj.frequency}")
-                        print(f"Related posts: {pain_point_obj.related_posts}")
-                        
                         current_total = pain_point_obj.avg_sentiment * (len(pain_point_obj.related_posts) - 1)
                         pain_point_obj.avg_sentiment = (current_total + post.sentiment) / len(pain_point_obj.related_posts)
-                        print(f"Updated average sentiment: {pain_point_obj.avg_sentiment}")
                         
                         pain_point_obj.calculate_severity()
-                        print(f"Updated severity: {pain_point_obj.severity}")
-            else:
-                print("Skipping post — No valid pain points or no matching products.")
         
-        print("\nFinalizing pain point map...")
-        print(f"Total unique categorized pain points: {len(pain_point_map)}")
+        logger.info(f"Finalized pain point map: {len(pain_point_map)} unique pain points")
         
         # Add to data store
         data_store.pain_points = pain_point_map
         data_store.analyzed_posts = posts
-        print("Data store updated.")
+        logger.info("Data store updated with pain points")
 
         return pain_point_map
 

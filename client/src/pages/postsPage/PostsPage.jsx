@@ -7,7 +7,7 @@ import SearchBar from "@/components/SearchBar/SearchBar";
 import FilterControls from "@/components/FilterControls/FilterControls";
 import LoadingState from "@/components/LoadingState/LoadingState";
 
-const PostsPage = () => {
+const PostsPage = ({ productFilter = null }) => {
   const [posts, setPosts] = useState([]);
   const [filteredPosts, setFilteredPosts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ const PostsPage = () => {
 
   // API filter options
   const [apiFilters, setApiFilters] = useState({
-    product: "",
+    product: productFilter || "",
     has_pain_points: true,
     limit: 20,
     sort_by: "score",
@@ -94,6 +94,13 @@ const PostsPage = () => {
 
     setFilteredPosts(result);
   }, [posts, searchTerm, localFilters]);
+
+  // Update filters when productFilter changes
+  useEffect(() => {
+    if (productFilter !== null) {
+      setApiFilters((prev) => ({ ...prev, product: productFilter }));
+    }
+  }, [productFilter]);
 
   useEffect(() => {
     loadPosts();

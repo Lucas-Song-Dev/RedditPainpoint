@@ -38,13 +38,15 @@ const RegisterForm = ({ onRegisterSuccess, onCancel }) => {
 
       // Registration successful
       if (response.status === "success") {
-        onRegisterSuccess();
+        onRegisterSuccess(username);
       } else {
         setError(response.message || "Registration failed");
       }
     } catch (err) {
       setError(
-        err.response?.data?.message || "Registration failed. Please try again."
+        err.message ||
+        err.response?.data?.message ||
+        "Registration failed. Please try again."
       );
     } finally {
       setIsLoading(false);

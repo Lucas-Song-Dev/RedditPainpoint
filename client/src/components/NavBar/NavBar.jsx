@@ -61,36 +61,28 @@ const Navbar = ({ activePage, setActivePage, handleLogout }) => {
             {!isCollapsed && <span className="menu-text">Home</span>}
           </li>
           <li
-            className={activePage === "scrapepage" ? "active" : ""}
+            className={activePage === "scrapepage" || activePage === "analysisPage" ? "active" : ""}
             onClick={() => setActivePage("scrapepage")}
-            title="Scrape"
+            title="Scrape & Analysis"
           >
             <span className="menu-icon">🔍</span>
-            {!isCollapsed && <span className="menu-text">Scrape</span>}
+            {!isCollapsed && <span className="menu-text">Scrape & Analysis</span>}
           </li>
           <li
-            className={activePage === "post" ? "active" : ""}
-            onClick={() => setActivePage("post")}
-            title="Posts"
+            className={activePage === "results" || activePage === "productDetail" ? "active" : ""}
+            onClick={() => setActivePage("results")}
+            title="Results"
           >
-            <span className="menu-icon">📝</span>
-            {!isCollapsed && <span className="menu-text">Posts</span>}
+            <span className="menu-icon">📋</span>
+            {!isCollapsed && <span className="menu-text">Results</span>}
           </li>
           <li
-            className={activePage === "analysisPage" ? "active" : ""}
-            onClick={() => setActivePage("analysisPage")}
-            title="Analysis"
+            className={activePage === "about" ? "active" : ""}
+            onClick={() => setActivePage("about")}
+            title="About"
           >
-            <span className="menu-icon">📊</span>
-            {!isCollapsed && <span className="menu-text">Analysis</span>}
-          </li>
-          <li
-            className={activePage === "recomendationPage" ? "active" : ""}
-            onClick={() => setActivePage("recomendationPage")}
-            title="Recommendation"
-          >
-            <span className="menu-icon">💡</span>
-            {!isCollapsed && <span className="menu-text">Recommendation</span>}
+            <span className="menu-icon">ℹ️</span>
+            {!isCollapsed && <span className="menu-text">About</span>}
           </li>
           {/* Logout button at the bottom of sidebar */}
           <li className="logout-item" onClick={handleLogout} title="Logout">

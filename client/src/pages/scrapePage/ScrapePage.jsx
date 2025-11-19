@@ -11,6 +11,22 @@ const ScrapePage = () => {
   const { showNotification } = useNotification();
   const [customSubreddit, setCustomSubreddit] = useState("");
   const [customProduct, setCustomProduct] = useState("");
+  const [errors, setErrors] = useState({});
+  
+  // Lists for random generation
+  const CODING_SUBREDDITS = [
+    "programming", "webdev", "learnprogramming", "Python", "javascript", 
+    "reactjs", "node", "cscareerquestions", "MachineLearning", "compsci",
+    "gamedev", "devops", "aws", "docker", "kubernetes", "linux", "git",
+    "algorithms", "datascience", "cybersecurity"
+  ];
+  
+  const SOFTWARE_PRODUCTS = [
+    "Adobe", "Duolingo", "Word", "Replit", "Cursor", "VS Code", "GitHub",
+    "Figma", "Notion", "Slack", "Discord", "Spotify", "Chrome", "Firefox",
+    "Safari", "Windows", "macOS", "Linux", "Android", "iOS", "Photoshop",
+    "Premiere", "After Effects", "Blender", "Unity", "Unreal Engine"
+  ];
 
   // Initialize form data from localStorage or use defaults
   const [formData, setFormData] = useState(() => {
@@ -29,7 +45,7 @@ const ScrapePage = () => {
       products: ["cursor", "replit"],
       limit: 75,
       time_filter: "week",
-      use_openai: true,
+      use_openai: false,
     };
   });
 
@@ -110,35 +126,79 @@ const ScrapePage = () => {
     }
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.subreddits || formData.subreddits.length === 0) {
+      newErrors.subreddits = "At least one subreddit is required";
+    }
+    
+    if (!formData.products || formData.products.length === 0) {
+      newErrors.products = "At least one product is required";
+    }
+    
+    if (formData.limit < 1 || formData.limit > 500) {
+      newErrors.limit = "Limit must be between 1 and 500";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleScrape = async () => {
+    // Validate form before submitting
+    if (!validateForm()) {
+      showNotification("Please fix the errors in the form", "error");
+      return;
+    }
+    
     setLoading(true);
+    setErrors({});
     try {
       const data = await triggerScrape({
         products: formData.products,
         limit: parseInt(formData.limit),
         subreddits: formData.subreddits,
         time_filter: formData.time_filter,
-        use_openai: formData.use_openai,
+        use_openai: false, // Analysis is now manual from product detail page
       });
       setScrapeInProgress(true);
 
       // Create a formatted message for the notification
-      const notificationMessage = `
-        Scraping job started successfully!
-        
-        Products: ${data.products.join(", ")}
-        Subreddits: ${data.subreddits.join(", ")}
-        Limit: ${data.limit}
-        Time filter: ${data.time_filter}
-        Using OpenAI: ${data.use_openai ? "Yes" : "No"}
-      `;
+      const notificationMessage = `Scraping job started! Products: ${data.products.join(", ")}, Subreddits: ${data.subreddits.join(", ")}, Limit: ${data.limit}, Time: ${data.time_filter}`;
 
-      showNotification(notificationMessage, "info");
+      showNotification(notificationMessage, "info", 8000);
+
+      // Trigger a custom event to notify StatusBar to refresh after a short delay
+      // This gives the backend time to update the scrape_in_progress status
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('scrapeStarted'));
+      }, 2000); // Wait 2 seconds for backend to update status
     } catch (err) {
       console.error(err);
+      showNotification(err.message || "Failed to start scraping", "error");
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateRandom = () => {
+    // Generate 3-5 random subreddits
+    const shuffledSubreddits = [...CODING_SUBREDDITS].sort(() => 0.5 - Math.random());
+    const randomSubreddits = shuffledSubreddits.slice(0, Math.floor(Math.random() * 3) + 3);
+    
+    // Generate 1-3 random products
+    const shuffledProducts = [...SOFTWARE_PRODUCTS].sort(() => 0.5 - Math.random());
+    const randomProducts = shuffledProducts.slice(0, Math.floor(Math.random() * 3) + 1);
+    
+    setFormData({
+      ...formData,
+      subreddits: randomSubreddits,
+      products: randomProducts,
+    });
+    
+    setErrors({});
+    showNotification("Generated random subreddits and products!", "success");
   };
 
   // Reset to default values
@@ -148,7 +208,7 @@ const ScrapePage = () => {
       products: [],
       limit: 75,
       time_filter: "week",
-      use_openai: true,
+      use_openai: false,
     };
 
     setFormData(defaultData);
@@ -167,6 +227,9 @@ const ScrapePage = () => {
         {/* Subreddits Section */}
         <div className="card">
           <h2 className="card-title">Subreddits</h2>
+          {errors.subreddits && (
+            <div className="error-message">{errors.subreddits}</div>
+          )}
           <div className="tags-container">
             {formData.subreddits.map((subreddit) => (
               <div key={subreddit} className="tag subreddit-tag">
@@ -197,6 +260,9 @@ const ScrapePage = () => {
         {/* Products Section */}
         <div className="card">
           <h2 className="card-title">Products</h2>
+          {errors.products && (
+            <div className="error-message">{errors.products}</div>
+          )}
           <div className="tags-container">
             {formData.products.map((product) => (
               <div key={product} className="tag product-tag">
@@ -259,17 +325,6 @@ const ScrapePage = () => {
             </div>
           </div>
 
-          <div className="checkbox-container">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="use_openai"
-                checked={formData.use_openai}
-                onChange={handleInputChange}
-              />
-              <span>Use OpenAI</span>
-            </label>
-          </div>
         </div>
       </div>
 
@@ -279,16 +334,18 @@ const ScrapePage = () => {
           className="reset-button"
           disabled={loading}
         >
-          Reset to Defaults
+          Clear All
+        </button>
+        <button
+          onClick={generateRandom}
+          className="generate-button"
+          disabled={loading || scrapeInProgress}
+        >
+          🎲 Generate Random
         </button>
         <button
           onClick={handleScrape}
-          disabled={
-            loading ||
-            scrapeInProgress ||
-            formData.subreddits.length === 0 ||
-            formData.products.length === 0
-          }
+          disabled={loading || scrapeInProgress}
           className="scrape-button"
         >
           {loading

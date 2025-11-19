@@ -1,49 +1,35 @@
-
+@use '../../styles/variables' as *;
 
 .sidebar {
   width: 280px;
-  background: $sidebar-dark;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: $light-text;
+  background: $terminal-bg-dark;
+  color: $terminal-text;
   padding: 0 0 20px 0;
   display: flex;
   flex-direction: column;
-  box-shadow: 5px 0 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 5px 0 20px rgba(0, 0, 0, 0.5);
   transition: all $transition-speed ease;
   position: relative;
   z-index: 10;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  opacity: 0.9;
+  border-right: 1px solid $terminal-border;
+  font-family: 'Courier New', 'Consolas', 'Monaco', 'Menlo', monospace;
   
-  // Border gradient animation
+  // Terminal border indicator
   &::before {
     content: '';
     position: absolute;
-    top: -2px;
-    right: -2px;
-    bottom: -2px;
+    top: 0;
+    right: -1px;
+    bottom: 0;
     width: 2px;
-    background: linear-gradient(to bottom, transparent, $accent-color, transparent);
+    background: $terminal-border;
+    box-shadow: 0 0 10px $terminal-border;
     opacity: 0.5;
-    animation: borderFlow 8s ease-in-out infinite;
-  }
-  
-  @keyframes borderFlow {
-    0%, 100% { 
-      transform: translateY(-100%); 
-      opacity: 0;
-    }
-    50% { 
-      transform: translateY(100%); 
-      opacity: 1;
-    }
   }
   
   // Collapsed state
   &.collapsed {
     width: 80px;
-
     
     .logo-container {
       justify-content: center;
@@ -73,28 +59,26 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid $terminal-border;
 }
 
 // Collapse Toggle Button
 .collapse-toggle {
-  background: linear-gradient(135deg, $accent-color,  color.adjust($accent-color, $lightness: +10%));
-  // opacity: 0.5;
-  color: white;
+  background: $terminal-bg;
+  color: $terminal-text;
   width: 40px;
   height: 40px;
-  border-radius: 4px;
-  // display: flex;
+  border: 1px solid $terminal-border;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 5px rgba(0, 255, 0, 0.2);
   z-index: 1;
   transition: all 0.2s;
-  // overflow: visible; // <--- make sure it's not hiding children
   position: relative;
-
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
 
   .icon {
     width: 20px;
@@ -102,13 +86,19 @@
     stroke: currentColor;
     position: absolute;
     top: 10px;
-    right: 10px
-    ;
+    right: 10px;
   }
   
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
+    background: $terminal-panel;
+    border-color: $terminal-text-bright;
+    color: $terminal-text-bright;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+  }
+  
+  &:active {
+    background: $terminal-bg;
+    box-shadow: inset 0 0 5px rgba(0, 255, 0, 0.3);
   }
 }
 
@@ -121,47 +111,58 @@
   margin-bottom: 5px;
   position: relative;
   overflow: hidden;
+  border-bottom: 1px solid $terminal-border;
   
-  // Subtle pulsing animation
+  // Terminal scanline effect
   &::after {
     content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 100%;
-    height: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    filter: blur(15px);
-    animation: pulse 3s ease-in-out infinite;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 255, 0, 0.03) 2px,
+      rgba(0, 255, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    animation: scanline 8s linear infinite;
   }
   
-  @keyframes pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.5; }
+  @keyframes scanline {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(100px); }
   }
 }
 
 .app-logo {
-  background: linear-gradient(135deg, $accent-color,  color.adjust($accent-color, $lightness: -10%));
-  color: white;
+  background: $terminal-bg;
+  color: $terminal-text;
   width: 40px;
   height: 40px;
-  border-radius: 4px;
+  border: 1px solid $terminal-border;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 5px rgba(0, 255, 0, 0.2);
   z-index: 1;
+  font-family: 'Courier New', monospace;
 }
 
 .app-name {
-  color: white;
+  color: $terminal-text;
   font-weight: 600;
   font-size: 16px;
   white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  z-index: 1;
+  position: relative;
 }
 
 .nav-menu {
@@ -182,11 +183,14 @@
       transition: all $transition-speed;
       font-size: 15px;
       margin: 1px 15px;
-      border-radius: 4px;
+      border: 1px solid transparent;
       position: relative;
       overflow: hidden;
       display: flex;
       align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'Courier New', monospace;
       
       &::before {
         content: '';
@@ -195,14 +199,16 @@
         left: 0;
         width: 3px;
         height: 100%;
-        background: $accent-color;
+        background: $terminal-border;
         transform: scaleY(0);
         transition: transform $transition-speed;
+        box-shadow: 0 0 5px $terminal-border;
       }
       
       &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateX(5px);
+        background: rgba(0, 255, 0, 0.05);
+        border-color: $terminal-border;
+        color: $terminal-text-bright;
         
         &::before {
           transform: scaleY(1);
@@ -210,9 +216,11 @@
       }
       
       &.active {
-        background: rgba(255, 255, 255, 0.15);
-        font-weight: 500;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        background: rgba(0, 255, 0, 0.1);
+        border-color: $terminal-border;
+        font-weight: 600;
+        box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        color: $terminal-text-bright;
         
         &::before {
           transform: scaleY(1);
@@ -222,22 +230,19 @@
 
     .logout-item {
       margin-top: 30px;
-      background: rgba(220, 53, 69, 0.1);
-      color: #ff6b6b;
-      border: 1px solid rgba(220, 53, 69, 0.2);
-      border-radius: 4px;
+      background: rgba(255, 0, 0, 0.1);
+      color: $terminal-error;
+      border: 1px solid $terminal-error;
       transition: all $transition-speed;
 
       &::before {
-        // transform: scaleY(1);
-        background-color: rgb(167, 41, 54);
+        background-color: $terminal-error;
       }
-
       
       &:hover {
-        background: rgba(220, 53, 69, 0.2);
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.15);
+        background: rgba(255, 0, 0, 0.2);
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        color: #ff3333;
       }
     }
   }
@@ -251,7 +256,7 @@
   width: 24px;
 }
 
-// For better mobile experience
+// Mobile responsive
 @media (max-width: 767px) {
   .sidebar {
     width: 100%;
@@ -260,7 +265,7 @@
     bottom: 0;
     left: 0;
     height: auto;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid $terminal-border;
     border-right: none;
     z-index: 1000;
 
@@ -277,8 +282,7 @@
       bottom: auto;
       left: 0;
       right: 0;
-      background: linear-gradient(to right, transparent, $accent-color, transparent);
-      animation: none;
+      background: $terminal-border;
     }
 
     .app-name {
@@ -330,7 +334,6 @@
     
     li {
       padding: 10px;
-      // margin: 5px;
       flex: 1 0 auto;
       min-width: 80px;
       max-width: 110px;

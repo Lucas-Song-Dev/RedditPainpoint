@@ -1,20 +1,39 @@
 @use "sass:color";
 
-// Variables
-$glass-bg: rgba(255, 255, 255, 0.2);
-$glass-border: rgba(255, 255, 255, 0.3);
-$glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-$accent-glow: rgba(74, 144, 226, 0.4);
-$error-color: #e53e3e;
-$success-color: #38a169;
-$dark-text: #2c3e50;
-$medium-text: #4a5568;
-$light-text: #f8f9fa;
-$transition-speed: 0.3s;
+// Terminal/Hardware Theme Variables
+$terminal-bg: #000000;
+$terminal-bg-dark: #0a0a0a;
+$terminal-bg-darker: #050505;
+$terminal-panel: #1a1a1a;
+$terminal-border: #00ff00;
+$terminal-border-dim: #00cc00;
+$terminal-text: #00ff00;
+$terminal-text-bright: #00ff41;
+$terminal-text-dim: #00cc00;
+$terminal-text-muted: #008800;
+$terminal-error: #ff0000;
+$terminal-success: #00ff00;
+$terminal-warning: #ffff00;
 
-/* ScrapePage.scss - Modern Glass UI Version */
+// Text colors
+$dark-text: #00ff00;
+$medium-text: #00cc00;
+$light-text: #00ff41;
 
-$secondary-color: rgba(20, 30, 48, 0.85);
-$sidebar-dark: rgba(20, 30, 48, 0.85);
-$accent-color: #606c85;
-$secondary-glow: rgba(76, 175, 80, 0.4);
+// Accent colors
+$accent-color: #00ff00;
+$accent-glow: rgba(0, 255, 0, 0.3);
+$secondary-glow: rgba(0, 255, 0, 0.2);
+
+// UI elements
+$glass-bg: rgba(26, 26, 26, 0.95);
+$glass-border: rgba(0, 255, 0, 0.3);
+$glass-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+$sidebar-dark: #0a0a0a;
+$secondary-color: #1a1a1a;
+
+// Error/Success
+$error-color: #ff0000;
+$success-color: #00ff00;
+
+$transition-speed: 0.2s;

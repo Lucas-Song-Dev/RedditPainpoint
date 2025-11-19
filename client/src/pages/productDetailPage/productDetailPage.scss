@@ -1,0 +1,131 @@
+@use "../../styles/variables" as *;
+
+.product-detail-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 25px;
+}
+
+.product-header {
+  margin-bottom: 25px;
+}
+
+.back-button {
+  background: $terminal-panel;
+  border: 1px solid $terminal-border;
+  color: $terminal-text;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: 20px;
+  transition: all 0.3s;
+  
+  &:hover {
+    background: lighten($terminal-panel, 5%);
+    border-color: $terminal-text-bright;
+    color: $terminal-text-bright;
+  }
+}
+
+.tabs-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid $terminal-border;
+  padding-bottom: 0;
+}
+
+.tab-button {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $terminal-text-dim;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.3s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  
+  &:hover {
+    color: $terminal-text;
+    background: $terminal-panel;
+  }
+  
+  &.active {
+    color: $terminal-text-bright;
+    border-bottom-color: $terminal-text-bright;
+    background: $terminal-panel;
+  }
+  
+  .tab-badge {
+    background: $terminal-bg-dark;
+    border: 1px solid $terminal-border;
+    color: $terminal-text;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  &.active .tab-badge {
+    background: $terminal-text-bright;
+    color: $terminal-bg;
+    border-color: $terminal-text-bright;
+  }
+}
+
+.tab-content {
+  min-height: 400px;
+}
+
+.no-data {
+  text-align: center;
+  padding: 60px 20px;
+  color: $terminal-text-dim;
+  font-size: 16px;
+  background: $terminal-panel;
+  border: 1px solid $terminal-border;
+  border-radius: 4px;
+  
+  p {
+    margin: 10px 0;
+  }
+  
+  .hint {
+    font-size: 14px;
+    color: $terminal-text-muted;
+    font-style: italic;
+  }
+}
+
+.action-button {
+  background: $terminal-panel;
+  border: 1px solid $terminal-border;
+  color: $terminal-text;
+  padding: 12px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 20px;
+  transition: all 0.3s;
+  
+  &:hover:not(:disabled) {
+    background: lighten($terminal-panel, 5%);
+    border-color: $terminal-text-bright;
+    color: $terminal-text-bright;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+

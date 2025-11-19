@@ -11,11 +11,16 @@ from dotenv import load_dotenv
 from functools import wraps
 import jwt
 import bcrypt
+from security import (
+    validate_input, sanitize_input, rate_limit, 
+    validate_password_strength, sanitize_error_message
+)
 
 # Import data_store from app
 from app import data_store
 from reddit_scraper import RedditScraper
 from nlp_analyzer import NLPAnalyzer
+from advanced_nlp_analyzer import AdvancedNLPAnalyzer
 from openai_analyzer import OpenAIAnalyzer
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -25,13 +30,21 @@ logger = logging.getLogger(__name__)
 REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+# Validate JWT secret on startup
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable is required")
+if JWT_SECRET_KEY in ["your-secret-key-change-in-production", "dev_secret_key", "secret"]:
+    raise ValueError("JWT_SECRET_KEY must be changed from default value")
+if len(JWT_SECRET_KEY) < 32:
+    raise ValueError("JWT_SECRET_KEY must be at least 32 characters long")
 JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", 3600))  # 1 hour default
 
 
 # Initialize scraper and analyzers
 scraper = RedditScraper()
-analyzer = NLPAnalyzer()
+analyzer = NLPAnalyzer()  # Legacy analyzer for backward compatibility
+advanced_analyzer = AdvancedNLPAnalyzer()  # Advanced NLP with 94% accuracy target
 openai_analyzer = OpenAIAnalyzer()
 # In api_resources.py - no need to create a new MongoDB store here since we're using the one from app.py
 mongodb_uri = os.getenv("MONGODB_URI")
@@ -46,6 +59,7 @@ if OPENAI_API_KEY:
 
 class Register(Resource):
     """API endpoint for user registration"""
+    @rate_limit(max_requests=5, window=300)  # 5 registrations per 5 minutes
     def post(self):
         """
         Register a new user
@@ -59,13 +73,41 @@ class Register(Resource):
             JSON response confirming registration
         """
         data = request.get_json() or {}
-        username = data.get('username')
-        password = data.get('password')
-        email = data.get('email')
+        username = sanitize_input(data.get('username', ''))
+        password = data.get('password', '')
+        email = sanitize_input(data.get('email', '')) if data.get('email') else None
         
-        # Validate input
-        if not username or not password:
-            return {"status": "error", "message": "Username and password are required"}, 400
+        # Validate input with security rules
+        validation_rules = {
+            'username': {
+                'type': str,
+                'required': True,
+                'min_len': 3,
+                'max_len': 50,
+                'pattern': r'^[a-zA-Z0-9_]+$'
+            },
+            'password': {
+                'type': str,
+                'required': True,
+                'min_len': 8,
+                'max_len': 128
+            },
+            'email': {
+                'type': str,
+                'required': False,
+                'max_len': 255,
+                'pattern': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' if email else None
+            }
+        }
+        
+        is_valid, errors = validate_input({'username': username, 'password': password, 'email': email}, validation_rules)
+        if not is_valid:
+            return {"status": "error", "message": "; ".join(errors)}, 400
+        
+        # Validate password strength
+        is_strong, pwd_error = validate_password_strength(password)
+        if not is_strong:
+            return {"status": "error", "message": pwd_error}, 400
         
         # Check if username already exists in MongoDB
         if data_store.db is not None:
@@ -101,34 +143,55 @@ class Register(Resource):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        print(f"\n[TOKEN_CHECK] Checking authentication for {f.__name__}")
+        print(f"[TOKEN_CHECK] Path: {request.path}")
+        print(f"[TOKEN_CHECK] Cookies: {list(request.cookies.keys())}")
         token = None
         
         # Try to get token from cookies first
         token = request.cookies.get('access_token')
+        print(f"[TOKEN_CHECK] Token from cookies: {'Found' if token else 'Not found'}")
         
         # If not in cookies, check Authorization header
         if not token:
             auth_header = request.headers.get('Authorization')
+            print(f"[TOKEN_CHECK] Authorization header: {auth_header[:50] if auth_header else 'None'}...")
             if auth_header and auth_header.startswith('Bearer '):
                 token = auth_header.split(' ')[1]
+                print(f"[TOKEN_CHECK] Token from header: Found")
         
         if not token:
+            print(f"[TOKEN_CHECK] ERROR: No token found - returning 401")
+            logger.warning(f"Authentication failed for {request.path}: No token provided")
             return {"status": "error", "message": "Authentication token is missing"}, 401
         
         try:
+            print(f"[TOKEN_CHECK] Decoding token...")
             # Decode the token
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
             current_user = payload
+            print(f"[TOKEN_CHECK] Token valid! User: {payload.get('username', 'unknown')}")
+            logger.info(f"Authentication successful for {request.path} - User: {payload.get('username', 'unknown')}")
         except jwt.ExpiredSignatureError:
+            print(f"[TOKEN_CHECK] ERROR: Token expired")
+            logger.warning(f"Authentication failed for {request.path}: Token expired")
             return {"status": "error", "message": "Token has expired"}, 401
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
+            print(f"[TOKEN_CHECK] ERROR: Invalid token - {str(e)}")
+            logger.warning(f"Authentication failed for {request.path}: Invalid token - {str(e)}")
             return {"status": "error", "message": "Invalid token"}, 401
+        except Exception as e:
+            print(f"[TOKEN_CHECK] ERROR: Unexpected error - {str(e)}")
+            logger.error(f"Authentication error for {request.path}: {str(e)}", exc_info=True)
+            return {"status": "error", "message": "Authentication error"}, 401
         
+        print(f"[TOKEN_CHECK] Calling {f.__name__} with user: {current_user}")
         return f(current_user, *args, **kwargs)
     
     return decorated
 class Login(Resource):
     """API endpoint for user authentication"""
+    @rate_limit(max_requests=10, window=300)  # 10 login attempts per 5 minutes
     def post(self):
         """
         Authenticate user and return JWT token
@@ -142,12 +205,28 @@ class Login(Resource):
         """
         try:
             data = request.get_json() or {}
-            username = data.get('username')
-            password = data.get('password')
+            username = sanitize_input(data.get('username', ''))
+            password = data.get('password', '')
             
-            # Validate input
-            if not username or not password:
-                return {"status": "error", "message": "Username and password are required"}, 400
+            # Validate input with security rules
+            validation_rules = {
+                'username': {
+                    'type': str,
+                    'required': True,
+                    'min_len': 1,
+                    'max_len': 50
+                },
+                'password': {
+                    'type': str,
+                    'required': True,
+                    'min_len': 1,
+                    'max_len': 128
+                }
+            }
+            
+            is_valid, errors = validate_input({'username': username, 'password': password}, validation_rules)
+            if not is_valid:
+                return {"status": "error", "message": "; ".join(errors)}, 400
             
             # Check MongoDB for user authentication
             if data_store.db is not None:
@@ -168,11 +247,10 @@ class Login(Resource):
                     }
                     token = jwt.encode(token_payload, JWT_SECRET_KEY, algorithm="HS256")
                     
-                    # Create response with token in cookie
+                    # Create response WITHOUT token in body (security: token only in HTTP-only cookie)
                     response = make_response(jsonify({
                         "status": "success",
                         "message": "Authentication successful",
-                        "token": token,
                         "expires": token_expiry.isoformat()
                     }))
                     
@@ -200,11 +278,10 @@ class Login(Resource):
                     }
                     token = jwt.encode(token_payload, JWT_SECRET_KEY, algorithm="HS256")
                     
-                    # Create response with token in cookie
+                    # Create response WITHOUT token in body (security: token only in HTTP-only cookie)
                     response = make_response(jsonify({
                         "status": "success",
                         "message": "Authentication successful",
-                        "token": token,
                         "expires": token_expiry.isoformat()
                     }))
                     
@@ -222,8 +299,9 @@ class Login(Resource):
                 else:
                     return {"status": "error", "message": "Invalid credentials"}, 401
         except Exception as e:
+            error_msg = sanitize_error_message(e)
             logger.error(f"Login error: {str(e)}")
-            return {"status": "error", "message": f"Internal server error: {str(e)}"}, 500
+            return {"status": "error", "message": error_msg}, 500
 
 class Logout(Resource):
     """API endpoint for user logout"""
@@ -239,8 +317,15 @@ class Logout(Resource):
             "message": "Logout successful"
         }))
         
-        # Clear the auth cookie
-        response.set_cookie('access_token', '', expires=0)
+        # Clear the auth cookie with same attributes as when it was set
+        response.set_cookie(
+            'access_token',
+            '',
+            expires=0,
+            httponly=True,
+            secure=request.is_secure,
+            samesite='Lax'
+        )
         
         return response
 class ScrapePosts(Resource):
@@ -260,16 +345,31 @@ class ScrapePosts(Resource):
         Returns:
             JSON response with status of the scraping job
         """
+        print("\n" + "=" * 60)
+        print("SCRAPE POST ENDPOINT CALLED")
+        print("=" * 60)
+        logger.info("ScrapePosts POST endpoint called")
+        
         if data_store.scrape_in_progress:
+            print("ERROR: Scrape already in progress!")
             return {"status": "error", "message": "A scraping job is already in progress"}, 409
         
         # Get parameters
         data = request.get_json() or {}
+        print(f"Request data: {data}")
         products = data.get('products', scraper.target_products)
         limit = int(data.get('limit', 100))
         subreddits = data.get('subreddits')
         time_filter = data.get('time_filter', 'month')
         use_openai = data.get('use_openai', False)
+        
+        print(f"Parsed parameters:")
+        print(f"  - products: {products}")
+        print(f"  - limit: {limit}")
+        print(f"  - subreddits: {subreddits}")
+        print(f"  - time_filter: {time_filter}")
+        print(f"  - use_openai: {use_openai}")
+        logger.info(f"Scrape parameters - products: {products}, limit: {limit}, subreddits: {subreddits}, time_filter: {time_filter}, use_openai: {use_openai}")
         
         # Validate Reddit credentials
         if not REDDIT_CLIENT_ID or not REDDIT_CLIENT_SECRET:
@@ -302,90 +402,167 @@ class ScrapePosts(Resource):
         def background_scrape():
             try:
                 # Scrape posts
-                logger.info(f"Starting scraping for products: {products}, time_filter: {time_filter}")
+                print("=" * 50)
+                print("=== STARTING SCRAPE ===")
+                print(f"Products: {products}")
+                print(f"Subreddits: {subreddits}")
+                print(f"Limit: {limit}")
+                print(f"Time filter: {time_filter}")
+                print(f"Use OpenAI: {use_openai}")
+                print("=" * 50)
+                logger.info(f"=== STARTING SCRAPE ===")
+                logger.info(f"Products: {products}")
+                logger.info(f"Subreddits: {subreddits}")
+                logger.info(f"Limit: {limit}")
+                logger.info(f"Time filter: {time_filter}")
+                logger.info(f"Use OpenAI: {use_openai}")
                 all_posts = []
                 
                 # Use the updated scraper method with filters
+                print("Calling scraper.scrape_all_products...")
+                logger.info(f"Calling scraper.scrape_all_products...")
                 result = scraper.scrape_all_products(
                     limit=limit,
                     subreddits=subreddits,
                     time_filter=time_filter,
                     products=products
                 )
+                print(f"Scraper returned {len(result)} product groups")
+                logger.info(f"Scraper returned {len(result)} product groups")
                 
                 # Flatten the results
-                for product_posts in result.values():
+                for product_name, product_posts in result.items():
+                    print(f"Product '{product_name}': {len(product_posts)} posts")
+                    logger.info(f"Product '{product_name}': {len(product_posts)} posts")
                     all_posts.extend(product_posts)
                 
-                # Analyze posts with NLP
-                analyzer.analyze_posts(all_posts, products)
+                print(f"Total posts scraped: {len(all_posts)}")
+                logger.info(f"Total posts scraped: {len(all_posts)}")
                 
+                if len(all_posts) == 0:
+                    print("WARNING: No posts were scraped!")
+                    logger.warning("No posts were scraped!")
+                
+                # Use advanced NLP analyzer for high-accuracy sentiment analysis
+                print(f"Running advanced NLP analysis on {len(all_posts)} posts")
+                logger.info(f"Running advanced NLP analysis on {len(all_posts)} posts")
+                nlp_results = advanced_analyzer.analyze_batch(all_posts)
+                print(f"NLP Analysis complete: {nlp_results['total_words']} words, Avg sentiment: {nlp_results['avg_sentiment']:.3f}")
+                print(f"NLP pain points found: {len(nlp_results.get('pain_points', []))}")
+                logger.info(f"NLP Analysis complete: {nlp_results['total_words']} words, "
+                          f"Avg sentiment: {nlp_results['avg_sentiment']:.3f}")
+                logger.info(f"NLP pain points found: {len(nlp_results.get('pain_points', []))}")
+                
+                # Also run legacy analyzer for product detection and categorization
+                print(f"Running legacy analyzer.analyze_posts...")
+                logger.info(f"Running legacy analyzer.analyze_posts...")
+                analyzer.analyze_posts(all_posts, products)
+                print(f"Legacy analyzer complete")
+                logger.info(f"Legacy analyzer complete")
+                
+                posts_saved = 0
+                print(f"Saving {len(all_posts)} posts to MongoDB...")
                 for post in all_posts:
-                    # Debug what products are detected
+                    # Get detected products
                     detected_products = analyzer.get_product_from_post(post, products)
                     # Set products for this post
                     post.products = detected_products
-                    # Save to MongoDB
-                    data_store.save_post(post)
+                    logger.debug(f"Post '{post.title[:50]}...' -> products: {detected_products}, sentiment: {getattr(post, 'sentiment', 'N/A')}")
+                    # Save to MongoDB with advanced NLP results
+                    if data_store.save_post(post):
+                        posts_saved += 1
+                        # Add to analyzed_posts list
+                        data_store.analyzed_posts.append(post)
                 
-                logger.info(f"Saved {len(all_posts)} posts to MongoDB")
+                print(f"Saved {posts_saved}/{len(all_posts)} posts to MongoDB")
+                print(f"Analyzed posts count: {len(data_store.analyzed_posts)}")
+                logger.info(f"Saved {posts_saved}/{len(all_posts)} posts to MongoDB")
+                logger.info(f"Analyzed posts count: {len(data_store.analyzed_posts)}")
                 
-                pain_points = analyzer.categorize_pain_points(all_posts, products)
+                # Use advanced analyzer pain points if available, otherwise fallback
+                logger.info(f"Processing pain points...")
+                if nlp_results.get('pain_points'):
+                    logger.info(f"Using advanced analyzer pain points: {len(nlp_results['pain_points'])} found")
+                    # Convert advanced analyzer pain points to PainPoint objects
+                    pain_points = {}
+                    for pp in nlp_results['pain_points']:
+                        from models import PainPoint
+                        key = f"{pp['category']}:{pp['indicator']}"
+                        pain_point_obj = PainPoint(
+                            name=pp['indicator'],
+                            description=f"{pp['category']} issue: {pp['indicator']}",
+                            frequency=pp['frequency'],
+                            avg_sentiment=pp['avg_sentiment'],
+                            product=products[0] if products else None
+                        )
+                        pain_point_obj.severity = pp['severity_score']
+                        pain_points[key] = pain_point_obj
+                    logger.info(f"Converted {len(pain_points)} pain points to PainPoint objects")
+                else:
+                    logger.info("No advanced analyzer pain points, using legacy analyzer")
+                    # Fallback to legacy analyzer
+                    pain_points = analyzer.categorize_pain_points(all_posts, products)
+                    logger.info(f"Legacy analyzer returned {len(pain_points)} pain points")
+                
+                pain_points_saved = 0
                 for key, pain_point in pain_points.items():
-                    print(pain_point)
                     # Check if it's already a list or a single object
                     if isinstance(pain_point, list):
                         # If it's a list, iterate through it
                         for pp in pain_point:
-                            data_store.save_pain_point(pp)
+                            if data_store.save_pain_point(pp):
+                                pain_points_saved += 1
                     else:
                         # If it's a single object, save it directly
-                        data_store.save_pain_point(pain_point)
+                        if data_store.save_pain_point(pain_point):
+                            pain_points_saved += 1
                 
-                logger.info(f"Saved pain points to MongoDB")
+                logger.info(f"Saved {pain_points_saved} pain points to MongoDB")
+                logger.info(f"Total pain points in store: {len(data_store.pain_points)}")
                 
-                # If OpenAI analysis is requested, analyze common pain points
-                if use_openai and all_posts:
-                    logger.info("Analyzing common pain points with OpenAI...")
-                    
-                    # Group posts by product
-                    posts_by_product = {}
-                    for post in all_posts:
-                        print(post)
-                        matching_products = post.products
-                        print(matching_products)
-                        # A post can now match multiple products
-                        for product in matching_products:
-                            print(product)
-                            if product not in posts_by_product:
-                                posts_by_product[product] = []
-                            posts_by_product[product].append(post)
-                    print("dipqwjoqijwdq")
-                    print(posts_by_product)
-                    print(all_posts)
-                    # Analyze each product's posts
-                    for product, product_posts in posts_by_product.items():
-                        if len(product_posts) > 0:
-                            analysis = openai_analyzer.analyze_common_pain_points(product_posts, product)
-                            print(analysis,"doiasjdoasji")
-                            if 'error' not in analysis:
-                                # Save analysis to MongoDB
-                                data_store.save_openai_analysis(product, analysis)
-                                logger.info(f"Stored OpenAI analysis for {product}")
+                # Note: OpenAI analysis is now manual - users can trigger it from the product detail page
+                print("Scrape complete. Posts saved. Analysis can be run manually from the product detail page.")
+                logger.info("Scrape complete. Posts saved. Analysis can be run manually from the product detail page.")
                 
                 # Update metadata to indicate scrape is finished
+                print("Updating metadata: scrape_in_progress=False")
+                logger.info("Updating metadata: scrape_in_progress=False")
                 data_store.update_metadata(scrape_in_progress=False)
                 
-                logger.info(f"Completed scraping and analysis of {len(all_posts)} posts")
+                print("=" * 50)
+                print("=== SCRAPE COMPLETE ===")
+                print(f"Total posts: {len(all_posts)}")
+                print(f"Raw posts in store: {len(data_store.raw_posts)}")
+                print(f"Analyzed posts in store: {len(data_store.analyzed_posts)}")
+                print(f"Pain points in store: {len(data_store.pain_points)}")
+                print(f"OpenAI analyses in store: {len(data_store.openai_analyses)}")
+                print("=" * 50)
+                logger.info(f"=== SCRAPE COMPLETE ===")
+                logger.info(f"Total posts: {len(all_posts)}")
+                logger.info(f"Raw posts in store: {len(data_store.raw_posts)}")
+                logger.info(f"Analyzed posts in store: {len(data_store.analyzed_posts)}")
+                logger.info(f"Pain points in store: {len(data_store.pain_points)}")
+                logger.info(f"OpenAI analyses in store: {len(data_store.openai_analyses)}")
             except Exception as e:
-                logger.error(f"Error in background scraping: {str(e)}")
+                print("=" * 50)
+                print("=== ERROR IN BACKGROUND SCRAPING ===")
+                print(f"Error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                print("=" * 50)
+                logger.error(f"=== ERROR IN BACKGROUND SCRAPING ===")
+                logger.error(f"Error: {str(e)}", exc_info=True)
                 # Update status in case of error
                 data_store.update_metadata(scrape_in_progress=False)
         
         # Start the background thread
+        print(f"Starting background scrape thread...")
+        logger.info("Starting background scrape thread...")
         scrape_thread = Thread(target=background_scrape)
         scrape_thread.daemon = True
         scrape_thread.start()
+        print(f"Background thread started (daemon={scrape_thread.daemon})")
+        logger.info(f"Background thread started")
         
         return {
             "status": "success", 
@@ -850,17 +1027,38 @@ class GetStatus(Resource):
         # Get connection status from initialized clients
         reddit_status = "connected" if scraper.reddit else "not_configured"
         openai_status = "connected" if openai_analyzer.api_key else "not_configured"
+        
+        # Get counts from MongoDB if available, otherwise use in-memory cache
+        raw_posts_count = len(data_store.raw_posts)
+        analyzed_posts_count = len(data_store.analyzed_posts)
+        pain_points_count = len(data_store.pain_points)
+        openai_analyses_count = len(data_store.openai_analyses)
+        
+        if data_store.db is not None:
+            try:
+                # Get counts from MongoDB
+                raw_posts_count = data_store.db.posts.count_documents({})
+                # Analyzed posts are posts that have sentiment analysis
+                analyzed_posts_count = data_store.db.posts.count_documents({"sentiment": {"$exists": True}})
+                pain_points_count = data_store.db.pain_points.count_documents({})
+                openai_analyses_count = data_store.db.openai_analysis.count_documents({})
+                
+                logger.debug(f"Status counts from MongoDB - Posts: {raw_posts_count}, Analyzed: {analyzed_posts_count}, Pain Points: {pain_points_count}, OpenAI: {openai_analyses_count}")
+            except Exception as e:
+                logger.error(f"Error counting from MongoDB: {str(e)}")
+                # Fallback to in-memory cache
+                logger.debug(f"Using in-memory counts - Posts: {raw_posts_count}, Analyzed: {analyzed_posts_count}, Pain Points: {pain_points_count}, OpenAI: {openai_analyses_count}")
                 
         return {
             "status": "success",
             "scrape_in_progress": data_store.scrape_in_progress,
             "last_scrape_time": data_store.last_scrape_time.isoformat() if data_store.last_scrape_time else None,
-            "raw_posts_count": len(data_store.raw_posts),
-            "analyzed_posts_count": len(data_store.analyzed_posts),
-            "pain_points_count": len(data_store.pain_points),
+            "raw_posts_count": raw_posts_count,
+            "analyzed_posts_count": analyzed_posts_count,
+            "pain_points_count": pain_points_count,
             "subreddits_scraped": list(data_store.subreddits_scraped),
-            "has_openai_analyses": len(data_store.openai_analyses) > 0,
-            "openai_analyses_count": len(data_store.openai_analyses),
+            "has_openai_analyses": openai_analyses_count > 0,
+            "openai_analyses_count": openai_analyses_count,
             "apis": {
                 "reddit": reddit_status,
                 "openai": openai_status
@@ -896,11 +1094,9 @@ class GetOpenAIAnalysis(Resource):
         # Get query parameters
         products_param = request.args.getlist('products[]')
         logger.info(f"Requested products: {products_param}")
-        print("got here")
         
         # Check if MongoDB is connected
         if data_store.db is None:
-
             # Fallback to in-memory data
             if not data_store.openai_analyses:
                 return {
@@ -915,13 +1111,11 @@ class GetOpenAIAnalysis(Resource):
             # Parse multiple products from MongoDB
             if len(products_param) > 0:
                 requested_products = [p.strip().lower() for p in products_param if p.strip()]
-                print(requested_products)
                 matched_analyses = []
                 
                 # Use MongoDB's $in operator to find matching products in one query
                 query = {"product": {"$in": requested_products}}
                 cursor = data_store.db.openai_analysis.find(query)
-                print(cursor)
                 
                 for doc in cursor:
                     # Transform to the expected response format
@@ -963,27 +1157,166 @@ class GetOpenAIAnalysis(Resource):
                 "analyses": list(data_store.openai_analyses.values())
             }
 
-# Create routes blueprint
-routes_bp = Blueprint('routes', __name__)
-@routes_bp.route('/')
-def index():
-    """Render the admin dashboard"""
-    from flask import render_template
-    return render_template('index.html')
-def initialize_routes(api):
-    """Add all resources to the API"""
-    # Auth endpoints
-    api.add_resource(Login, '/api/login')
-    api.add_resource(Logout, '/api/logout')
-    api.add_resource(Register, '/api/register')  # Add this line
-    
-    # Existing endpoints
-    api.add_resource(ScrapePosts, '/api/scrape')
-    api.add_resource(GetPainPoints, '/api/pain-points')
-    api.add_resource(GetPosts, '/api/posts')
-    api.add_resource(GetStatus, '/api/status')
-    api.add_resource(GetOpenAIAnalysis, '/api/openai-analysis')
-    api.add_resource(Recommendations, '/api/recommendations')
+class GetAllProducts(Resource):
+    """API endpoint to get list of all products that have posts (whether analyzed or not)"""
+    @token_required
+    def get(self, current_user):
+        """
+        Get list of all products that have posts in the database
+        
+        Returns:
+            JSON response with list of product names and their analysis status
+        """
+        try:
+            if data_store.db is None:
+                # Fallback to in-memory data
+                products = []
+                for post in data_store.raw_posts:
+                    if hasattr(post, 'products') and post.products:
+                        products.extend(post.products)
+                products = list(set(products))
+            else:
+                # Get all unique products from posts collection
+                products_with_posts = data_store.db.posts.distinct("products")
+                # Flatten the list (products is an array field)
+                products = []
+                seen_products = set()
+                for product_list in products_with_posts:
+                    if isinstance(product_list, list):
+                        for product in product_list:
+                            if product and product.strip().lower() not in seen_products:
+                                products.append(product.strip())
+                                seen_products.add(product.strip().lower())
+                    elif product_list and product_list.strip().lower() not in seen_products:
+                        products.append(product_list.strip())
+                        seen_products.add(product_list.strip().lower())
+            
+            # Get analysis status for each product
+            products_with_status = []
+            for product in products:
+                has_analysis = False
+                has_recommendations = False
+                
+                if data_store.db is not None:
+                    # Check if analysis exists
+                    analysis_doc = data_store.db.openai_analysis.find_one({
+                        "$or": [
+                            {"_id": product.strip().lower()},
+                            {"product": product.strip().lower()}
+                        ]
+                    })
+                    has_analysis = analysis_doc is not None
+                    
+                    # Check if recommendations exist
+                    rec_doc = data_store.db.recommendations.find_one({
+                        "$or": [
+                            {"_id": product.strip().lower()},
+                            {"product": product.strip().lower()}
+                        ]
+                    })
+                    has_recommendations = rec_doc is not None
+                else:
+                    # Fallback to in-memory
+                    has_analysis = product in data_store.openai_analyses
+                    has_recommendations = product in data_store.recommendations if hasattr(data_store, 'recommendations') else False
+                
+                products_with_status.append({
+                    "name": product,
+                    "has_analysis": has_analysis,
+                    "has_recommendations": has_recommendations
+                })
+            
+            return {
+                "status": "success",
+                "products": products_with_status
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving all products: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Database error: {str(e)}",
+                "products": []
+            }, 500
 
-# Export the blueprint for registration
-main_bp = routes_bp
+class RunAnalysis(Resource):
+    """API endpoint to manually run OpenAI analysis for a product"""
+    @token_required
+    def post(self, current_user):
+        """
+        Run OpenAI analysis for a specific product
+        
+        POST parameters:
+        - product (str): Product name to analyze
+        
+        Returns:
+            JSON response with analysis results
+        """
+        try:
+            data = request.get_json() or {}
+            product = data.get('product', '').strip()
+            
+            if not product:
+                return {"status": "error", "message": "Product name is required"}, 400
+            
+            print(f"\n[RUN_ANALYSIS] Starting analysis for product: '{product}'")
+            logger.info(f"Starting manual analysis for product: '{product}'")
+            
+            # Fetch posts for this product
+            if data_store.db is None:
+                product_posts = [p for p in data_store.raw_posts if hasattr(p, 'products') and product in p.products]
+            else:
+                # Query MongoDB for posts with this product
+                cursor = data_store.db.posts.find({"products": product})
+                from models import RedditPost
+                product_posts = []
+                for doc in cursor:
+                    post = RedditPost(
+                        id=doc.get('_id') or doc.get('id', ''),
+                        title=doc.get('title', ''),
+                        content=doc.get('content', '') or doc.get('selftext', ''),
+                        author=doc.get('author', ''),
+                        subreddit=doc.get('subreddit', ''),
+                        url=doc.get('url', ''),
+                        created_utc=doc.get('created_utc'),
+                        score=doc.get('score', 0),
+                        num_comments=doc.get('num_comments', 0)
+                    )
+                    post.products = doc.get('products', [])
+                    product_posts.append(post)
+            
+            if not product_posts:
+                return {"status": "error", "message": f"No posts found for product '{product}'"}, 404
+            
+            print(f"[RUN_ANALYSIS] Found {len(product_posts)} posts for '{product}'")
+            logger.info(f"Found {len(product_posts)} posts for '{product}'")
+            
+            # Run OpenAI analysis
+            analysis = openai_analyzer.analyze_common_pain_points(product_posts, product)
+            
+            if 'error' in analysis:
+                print(f"[RUN_ANALYSIS] Analysis failed: {analysis.get('error')}")
+                logger.error(f"Analysis failed for '{product}': {analysis.get('error')}")
+                return {
+                    "status": "error",
+                    "message": analysis.get('error', 'Analysis failed'),
+                    "analysis": None
+                }, 500
+            
+            # Save analysis to MongoDB
+            save_result = data_store.save_openai_analysis(product, analysis)
+            print(f"[RUN_ANALYSIS] Analysis saved: {save_result}")
+            logger.info(f"Analysis saved for '{product}': {save_result}")
+            
+            return {
+                "status": "success",
+                "message": f"Analysis completed for '{product}'",
+                "analysis": analysis,
+                "pain_points_count": len(analysis.get('common_pain_points', []))
+            }
+        except Exception as e:
+            logger.error(f"Error running analysis: {str(e)}", exc_info=True)
+            return {
+                "status": "error",
+                "message": f"Error running analysis: {str(e)}"
+            }, 500
+
